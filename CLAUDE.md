@@ -158,7 +158,12 @@ touch Effects/Effect.swift
 5. **Core/Engine/EngineConfiguration.swift** - ✅ Configuration and quality settings
 6. **Core/Pipeline/PipelineStateCache.swift** - ✅ PSO caching with async compilation
 7. **Core/Pipeline/ShaderLibrary.swift** - ✅ Shader loading and function management
-8. **Core/Engine/RenderEngine.swift** - Main engine implementation
+8. **Core/Pipeline/CommandBuilder.swift** - ✅ Command buffer pooling and draw call batching
+9. **Core/Pipeline/RenderPass.swift** - ✅ Render pass abstraction with descriptor caching
+10. **Core/Memory/ResourceHeap.swift** - ✅ Resource heap management with aliasing
+11. **Core/Memory/TexturePool.swift** - ✅ Dynamic texture pooling with memory pressure handling
+12. **Core/Memory/BufferPool.swift** - ✅ Buffer pooling for vertex/uniform/storage buffers
+13. **Core/Engine/RenderEngine.swift** - Main engine implementation
 9. **Layers/Base/Layer.swift** - Layer protocol
 10. **Layers/Types/ImageLayer.swift** - Basic image layer
 11. **Core/Pipeline/CommandBuilder.swift** - Command buffer management

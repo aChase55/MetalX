@@ -55,30 +55,30 @@ This is a detailed implementation plan for building MetalX, broken down into spe
   - [x] Function constant specialization
   - [x] Default shader library setup
 
-#### Day 10-11: Command Buffer Management
-- [ ] Implement `Core/Pipeline/CommandBuilder.swift`
-  - [ ] Command buffer pool
-  - [ ] Render pass descriptor caching
-  - [ ] Draw call batching logic
-  - [ ] GPU timing support
-- [ ] Implement `Core/Pipeline/RenderPass.swift`
-  - [ ] Render pass abstraction
-  - [ ] Attachment management
-  - [ ] Clear color/depth/stencil helpers
+#### Day 10-11: Command Buffer Management ✅ COMPLETED
+- [x] Implement `Core/Pipeline/CommandBuilder.swift`
+  - [x] Command buffer pool
+  - [x] Render pass descriptor caching
+  - [x] Draw call batching logic
+  - [x] GPU timing support
+- [x] Implement `Core/Pipeline/RenderPass.swift`
+  - [x] Render pass abstraction
+  - [x] Attachment management
+  - [x] Clear color/depth/stencil helpers
 
-#### Day 12-14: Memory Management Foundation
-- [ ] Implement `Core/Memory/ResourceHeap.swift`
-  - [ ] Heap creation and management
-  - [ ] Aliasable resource tracking
-  - [ ] Heap fragmentation monitoring
-- [ ] Implement `Core/Memory/TexturePool.swift`
-  - [ ] Texture descriptor caching
-  - [ ] Pool sizing based on memory
-  - [ ] Automatic purging under pressure
-- [ ] Implement `Core/Memory/BufferPool.swift`
-  - [ ] Vertex/index/uniform buffer pools
-  - [ ] Dynamic sizing
-  - [ ] Usage tracking
+#### Day 12-14: Memory Management Foundation ✅ COMPLETED
+- [x] Implement `Core/Memory/ResourceHeap.swift`
+  - [x] Heap creation and management
+  - [x] Aliasable resource tracking
+  - [x] Heap fragmentation monitoring
+- [x] Implement `Core/Memory/TexturePool.swift`
+  - [x] Texture descriptor caching
+  - [x] Pool sizing based on memory
+  - [x] Automatic purging under pressure
+- [x] Implement `Core/Memory/BufferPool.swift`
+  - [x] Vertex/index/uniform buffer pools
+  - [x] Dynamic sizing
+  - [x] Usage tracking
 
 ### Week 3: Basic Rendering
 
