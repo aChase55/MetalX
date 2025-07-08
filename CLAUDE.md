@@ -151,16 +151,19 @@ touch Effects/Effect.swift
 
 ## File Creation Order
 
-1. **Core/Math/MathExtensions.swift** - SIMD helpers and matrix operations
-2. **Core/Engine/MetalDevice.swift** - Device setup and capability detection  
-3. **Core/Engine/RenderContext.swift** - Rendering context management
-4. **Core/Pipeline/PipelineStateCache.swift** - PSO caching
-5. **Core/Engine/RenderEngine.swift** - Main engine implementation
-6. **Layers/Base/Layer.swift** - Layer protocol
-7. **Layers/Types/ImageLayer.swift** - Basic image layer
-8. **Core/Pipeline/CommandBuilder.swift** - Command buffer management
-9. **Effects/Effect.swift** - Effect protocol
-10. **Effects/Adjustments/BasicAdjustments.swift** - First effects
+1. **Core/Math/MathExtensions.swift** - ✅ SIMD helpers and matrix operations
+2. **Core/Math/Geometry.swift** - ✅ CGRect/CGPoint extensions and transforms
+3. **Core/Engine/MetalDevice.swift** - ✅ Device setup and capability detection  
+4. **Core/Engine/RenderContext.swift** - ✅ Rendering context management
+5. **Core/Engine/EngineConfiguration.swift** - ✅ Configuration and quality settings
+6. **Core/Pipeline/PipelineStateCache.swift** - ✅ PSO caching with async compilation
+7. **Core/Pipeline/ShaderLibrary.swift** - ✅ Shader loading and function management
+8. **Core/Engine/RenderEngine.swift** - Main engine implementation
+9. **Layers/Base/Layer.swift** - Layer protocol
+10. **Layers/Types/ImageLayer.swift** - Basic image layer
+11. **Core/Pipeline/CommandBuilder.swift** - Command buffer management
+12. **Effects/Effect.swift** - Effect protocol
+13. **Effects/Adjustments/BasicAdjustments.swift** - First effects
 
 ## Debugging Tools
 
