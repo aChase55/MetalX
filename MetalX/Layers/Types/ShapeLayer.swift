@@ -19,13 +19,13 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         }
     }
     
-    var strokeColor: CGColor? = nil {
+    var strokeColor: CGColor? = UIColor.black.cgColor {
         didSet {
             updateAppearance()
         }
     }
     
-    var strokeWidth: Float = 1.0 {
+    var strokeWidth: Float = 0.0 {
         didSet {
             updateAppearance()
         }
@@ -116,8 +116,37 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
     }
     
     private func updateAppearance() {
-        // TODO: Update shader uniforms or recreate texture
-        // based on fill/stroke changes
+        // Clear texture to force re-render with new appearance
+        texture = nil
+    }
+    
+    func clearTexture() {
+        texture = nil
+    }
+    
+    override func getBounds(includeEffects: Bool) -> CGRect {
+        // Start with base bounds
+        var layerBounds = bounds
+        
+        // Add stroke width to bounds
+        if strokeWidth > 0 {
+            let strokePadding = CGFloat(strokeWidth)
+            layerBounds = layerBounds.insetBy(dx: -strokePadding, dy: -strokePadding)
+        }
+        
+        // Apply transform to bounds
+        let scaledWidth = layerBounds.width * transform.scale
+        let scaledHeight = layerBounds.height * transform.scale
+        
+        // Position is the center of the layer
+        let transformedBounds = CGRect(
+            x: transform.position.x - scaledWidth / 2,
+            y: transform.position.y - scaledHeight / 2,
+            width: scaledWidth,
+            height: scaledHeight
+        )
+        
+        return transformedBounds
     }
     
     private func tessellatePathToMesh() {
@@ -281,9 +310,13 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         }
         
         // Make sure we have positive dimensions and respect Metal limits
+        // Add stroke width to bounds to prevent clipping
+        let strokePadding = strokeWidth * 2
+        let paddedBounds = bounds.insetBy(dx: CGFloat(-strokePadding), dy: CGFloat(-strokePadding))
+        
         let maxTextureSize = 8192
-        let requestedWidth = Int(abs(bounds.width) * renderScale)
-        let requestedHeight = Int(abs(bounds.height) * renderScale)
+        let requestedWidth = Int(abs(paddedBounds.width) * renderScale)
+        let requestedHeight = Int(abs(paddedBounds.height) * renderScale)
         
         let textureWidth = max(1, min(requestedWidth, maxTextureSize))
         let textureHeight = max(1, min(requestedHeight, maxTextureSize))
@@ -310,7 +343,7 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
             return nil
         }
         
-        // Calculate transform matrix with the render scale
+        // Calculate transform matrix - use original bounds for the shape
         let transform = createTransformMatrix(renderScale: Float(renderScale))
         
         // Render shape
@@ -341,19 +374,23 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         // The shape vertices are in the coordinate system defined by bounds
         // We need to map the bounds to fill the NDC space (-1 to 1)
         
-        // Calculate scale to fit shape bounds in NDC space
-        let scaleX = 2.0 / Float(bounds.width)   // Map width to 2 units (-1 to 1)
-        let scaleY = -2.0 / Float(bounds.height)  // Map height to 2 units, flip Y
+        // Calculate the padded bounds (includes stroke)
+        let strokePadding = strokeWidth * 2
+        let paddedBounds = bounds.insetBy(dx: CGFloat(-strokePadding), dy: CGFloat(-strokePadding))
         
-        // Calculate translation to center shape in NDC
-        let centerX = Float(bounds.midX)
-        let centerY = Float(bounds.midY)
+        // Calculate scale to fit padded bounds in NDC space
+        let scaleX = 2.0 / Float(paddedBounds.width)   // Map width to 2 units (-1 to 1)
+        let scaleY = -2.0 / Float(paddedBounds.height)  // Map height to 2 units, flip Y
+        
+        // Calculate translation to center padded bounds in NDC
+        let centerX = Float(paddedBounds.midX)
+        let centerY = Float(paddedBounds.midY)
         
         var transform = matrix_identity_float4x4
         // Scale
         transform.columns.0.x = scaleX
         transform.columns.1.y = scaleY
-        // Translate - map center of bounds to center of NDC (0,0)
+        // Translate - map center of padded bounds to center of NDC (0,0)
         transform.columns.3.x = -centerX * scaleX
         transform.columns.3.y = -centerY * scaleY
         

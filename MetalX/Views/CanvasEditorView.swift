@@ -97,25 +97,35 @@ struct CanvasEditorView: View {
                 
                 Spacer()
                 
-                // Save status at bottom
-                HStack {
-                    if hasUnsavedChanges {
-                        Label("Unsaved changes", systemImage: "exclamationmark.circle.fill")
-                            .foregroundColor(.orange)
-                            .font(.caption)
-                            .padding(8)
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(8)
-                    } else {
-                        Label("All changes saved", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                            .padding(8)
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(8)
+                // Bottom area
+                HStack(alignment: .bottom) {
+                    // Save status
+                    VStack {
+                        if hasUnsavedChanges {
+                            Label("Unsaved changes", systemImage: "exclamationmark.circle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                                .padding(8)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(8)
+                        } else {
+                            Label("All changes saved", systemImage: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                                .padding(8)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(8)
+                        }
                     }
                     
                     Spacer()
+                    
+                    // Shape properties panel
+                    if canvas.selectedLayer is VectorShapeLayer {
+                        ShapePropertiesView(canvas: canvas)
+                            .frame(width: 300)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .padding()
             }
@@ -153,6 +163,7 @@ struct CanvasEditorView: View {
                                 }
                             }
                         }
+                        
                         
                         Spacer()
                     }

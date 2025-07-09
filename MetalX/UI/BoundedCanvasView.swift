@@ -106,6 +106,14 @@ struct BoundedCanvasView: UIViewRepresentable {
                 name: NSNotification.Name("CanvasSelectionChanged"),
                 object: nil
             )
+            
+            // Observe canvas needs display
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(canvasNeedsDisplay),
+                name: NSNotification.Name("CanvasNeedsDisplay"),
+                object: nil
+            )
         }
         
         deinit {
@@ -118,6 +126,11 @@ struct BoundedCanvasView: UIViewRepresentable {
             scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
             
             // Force redraw to update selection rendering
+            metalView?.setNeedsDisplay()
+        }
+        
+        @objc private func canvasNeedsDisplay() {
+            canvas.needsDisplay = true
             metalView?.setNeedsDisplay()
         }
         

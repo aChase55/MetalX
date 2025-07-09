@@ -9,6 +9,7 @@ class ShapeRenderer {
     private var solidFillPipelineState: MTLRenderPipelineState?
     private var linearGradientPipelineState: MTLRenderPipelineState?
     private var radialGradientPipelineState: MTLRenderPipelineState?
+    private var angularGradientPipelineState: MTLRenderPipelineState?
     private var strokePipelineState: MTLRenderPipelineState?
     
     // Uniform buffer for shape data
@@ -32,23 +33,77 @@ class ShapeRenderer {
     
     struct GradientUniforms {
         var transform: matrix_float4x4
-        var colors: [SIMD4<Float>] // Up to 8 color stops
-        var locations: [Float]      // Color stop locations
+        var color0: SIMD4<Float>
+        var color1: SIMD4<Float>
+        var color2: SIMD4<Float>
+        var color3: SIMD4<Float>
+        var color4: SIMD4<Float>
+        var color5: SIMD4<Float>
+        var color6: SIMD4<Float>
+        var color7: SIMD4<Float>
+        var location0: Float
+        var location1: Float
+        var location2: Float
+        var location3: Float
+        var location4: Float
+        var location5: Float
+        var location6: Float
+        var location7: Float
         var colorCount: Int32
         var gradientType: Int32     // 0: linear, 1: radial, 2: angular
         var startPoint: SIMD2<Float>
         var endPoint: SIMD2<Float>
-        var padding: SIMD2<Float>   // Padding to align to 16 bytes
         
         init() {
             self.transform = matrix_identity_float4x4
-            self.colors = Array(repeating: SIMD4<Float>(0, 0, 0, 0), count: 8)
-            self.locations = Array(repeating: 0.0, count: 8)
+            self.color0 = SIMD4<Float>(0, 0, 0, 0)
+            self.color1 = SIMD4<Float>(0, 0, 0, 0)
+            self.color2 = SIMD4<Float>(0, 0, 0, 0)
+            self.color3 = SIMD4<Float>(0, 0, 0, 0)
+            self.color4 = SIMD4<Float>(0, 0, 0, 0)
+            self.color5 = SIMD4<Float>(0, 0, 0, 0)
+            self.color6 = SIMD4<Float>(0, 0, 0, 0)
+            self.color7 = SIMD4<Float>(0, 0, 0, 0)
+            self.location0 = 0.0
+            self.location1 = 0.0
+            self.location2 = 0.0
+            self.location3 = 0.0
+            self.location4 = 0.0
+            self.location5 = 0.0
+            self.location6 = 0.0
+            self.location7 = 0.0
             self.colorCount = 0
             self.gradientType = 0
             self.startPoint = SIMD2<Float>(0, 0)
             self.endPoint = SIMD2<Float>(1, 1)
-            self.padding = SIMD2<Float>(0, 0)
+        }
+        
+        mutating func setColor(at index: Int, color: SIMD4<Float>) {
+            switch index {
+            case 0: color0 = color
+            case 1: color1 = color
+            case 2: color2 = color
+            case 3: color3 = color
+            case 4: color4 = color
+            case 5: color5 = color
+            case 6: color6 = color
+            case 7: color7 = color
+            default: break
+            }
+        }
+        
+        mutating func setLocation(at index: Int, location: Float) {
+            switch index {
+            case 0: location0 = location
+            case 1: location1 = location
+            case 2: location2 = location
+            case 3: location3 = location
+            case 4: location4 = location
+            case 5: location5 = location
+            case 6: location6 = location
+            case 7: location7 = location
+            default: break
+            }
         }
     }
     
@@ -91,6 +146,13 @@ class ShapeRenderer {
         radialGradientPipelineState = try createPipelineState(
             vertexFunction: "shapeVertex",
             fragmentFunction: "shapeRadialGradient",
+            vertexDescriptor: vertexDescriptor
+        )
+        
+        // Angular gradient pipeline
+        angularGradientPipelineState = try createPipelineState(
+            vertexFunction: "shapeVertex",
+            fragmentFunction: "shapeAngularGradient",
             vertexDescriptor: vertexDescriptor
         )
         
@@ -145,10 +207,6 @@ class ShapeRenderer {
             return
         }
         
-        print("ShapeRenderer: Rendering shape with \(shape.indexCount) indices (\(shape.indexCount/3) triangles)")
-        print("Transform matrix:")
-        print("  [\(transform.columns.0.x), \(transform.columns.1.x), \(transform.columns.2.x), \(transform.columns.3.x)]")
-        print("  [\(transform.columns.0.y), \(transform.columns.1.y), \(transform.columns.2.y), \(transform.columns.3.y)]")
         
         // Create render pass descriptor
         let renderPassDescriptor = MTLRenderPassDescriptor()
@@ -171,10 +229,11 @@ class ShapeRenderer {
             zfar: 1.0
         ))
         
-        // Render fill
-        if let fillType = shape.fillType {
-            renderFill(
-                fillType: fillType,
+        // Render stroke first (behind fill)
+        if let strokeColor = shape.strokeColor, shape.strokeWidth > 0 {
+            renderStroke(
+                color: strokeColor,
+                width: shape.strokeWidth,
                 shape: shape,
                 vertices: vertices,
                 indices: indices,
@@ -183,13 +242,13 @@ class ShapeRenderer {
             )
         }
         
-        // Render stroke
-        if let strokeColor = shape.strokeColor, shape.strokeWidth > 0 {
-            renderStroke(
-                color: strokeColor,
-                width: shape.strokeWidth,
+        // Render fill on top
+        if let fillType = shape.fillType {
+            renderFill(
+                fillType: fillType,
                 shape: shape,
                 vertices: vertices,
+                indices: indices,
                 transform: transform,
                 encoder: renderEncoder
             )
@@ -281,8 +340,7 @@ class ShapeRenderer {
         case .radial:
             pipelineState = radialGradientPipelineState
         case .angular:
-            // TODO: Implement angular gradient
-            return
+            pipelineState = angularGradientPipelineState
         }
         
         guard let pipeline = pipelineState else { return }
@@ -292,21 +350,31 @@ class ShapeRenderer {
         // Setup gradient uniforms
         var uniforms = GradientUniforms()
         uniforms.transform = transform
-        uniforms.gradientType = gradient.type == .linear ? 0 : 1
+        
+        // Set gradient type: 0 = linear, 1 = radial, 2 = angular
+        switch gradient.type {
+        case .linear:
+            uniforms.gradientType = 0
+        case .radial:
+            uniforms.gradientType = 1
+        case .angular:
+            uniforms.gradientType = 2
+        }
+        
         uniforms.startPoint = SIMD2<Float>(Float(gradient.startPoint.x), Float(gradient.startPoint.y))
         uniforms.endPoint = SIMD2<Float>(Float(gradient.endPoint.x), Float(gradient.endPoint.y))
         uniforms.colorCount = Int32(min(gradient.colorStops.count, 8))
         
         // Copy color stops
         for (index, stop) in gradient.colorStops.prefix(8).enumerated() {
-            uniforms.colors[index] = colorToSIMD(stop.color)
-            uniforms.locations[index] = stop.location
+            uniforms.setColor(at: index, color: colorToSIMD(stop.color))
+            uniforms.setLocation(at: index, location: stop.location)
         }
         
         var shapeSize = SIMD2<Float>(Float(shape.bounds.width), Float(shape.bounds.height))
         
         encoder.setVertexBuffer(vertices, offset: 0, index: 0)
-        encoder.setVertexBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 1)
+        encoder.setVertexBytes(&uniforms, length: MemoryLayout<GradientUniforms>.stride, index: 1)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<GradientUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&shapeSize, length: MemoryLayout<SIMD2<Float>>.stride, index: 1)
         
@@ -325,11 +393,42 @@ class ShapeRenderer {
         width: Float,
         shape: VectorShapeLayer,
         vertices: MTLBuffer,
+        indices: MTLBuffer,
         transform: matrix_float4x4,
         encoder: MTLRenderCommandEncoder
     ) {
-        // TODO: Implement proper stroke rendering
-        // This would require generating stroke geometry from the path
+        guard let pipelineState = solidFillPipelineState else { return }
+        
+        encoder.setRenderPipelineState(pipelineState)
+        
+        // Create a slightly scaled up transform for the stroke
+        var strokeTransform = transform
+        
+        // Calculate stroke scale factor based on the original bounds (not padded)
+        let strokeScale = 1.0 + (width / min(Float(shape.bounds.width), Float(shape.bounds.height)))
+        
+        // Apply additional scale to the transform
+        strokeTransform.columns.0 *= strokeScale
+        strokeTransform.columns.1 *= strokeScale
+        
+        // Setup uniforms with stroke color
+        var uniforms = ShapeUniforms()
+        uniforms.transform = strokeTransform
+        uniforms.fillColor = colorToSIMD(color)
+        uniforms.shapeSize = SIMD2<Float>(Float(shape.bounds.width), Float(shape.bounds.height))
+        
+        encoder.setVertexBuffer(vertices, offset: 0, index: 0)
+        encoder.setVertexBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 0)
+        
+        // Draw the stroke shape
+        encoder.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: shape.indexCount,
+            indexType: .uint16,
+            indexBuffer: indices,
+            indexBufferOffset: 0
+        )
     }
     
     // MARK: - Buffer Creation
