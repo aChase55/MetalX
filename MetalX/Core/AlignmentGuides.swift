@@ -166,7 +166,7 @@ class GuideRenderer {
             lineLayer.path = path.cgPath
             lineLayer.strokeColor = guide.isCenter ? UIColor.systemBlue.cgColor : UIColor.systemYellow.cgColor
             lineLayer.lineWidth = 1.0
-            lineLayer.lineDashPattern = guide.isCenter ? nil : [5, 5]
+            lineLayer.lineDashPattern = [5, 5]  // Make both center and edge lines dashed
             
             guideLayer.addSublayer(lineLayer)
         }
