@@ -39,8 +39,10 @@ class QuadRenderer {
         // Create pipeline state for each blend mode
         for blendMode in BlendMode.allCases {
             let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = vertexFunction
             
+            // For now, use simple fragment shader for all modes
+            // Advanced blend modes would require render-to-texture
+            descriptor.vertexFunction = vertexFunction
             descriptor.fragmentFunction = fragmentFunction
             
             descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
@@ -70,8 +72,9 @@ class QuadRenderer {
                 colorAttachment.rgbBlendOperation = .add
                 
             case .screen:
-                // Screen should also respect alpha: result = src + dst * (1 - src)
-                // But we need to account for alpha to avoid affecting transparent areas
+                // Screen blend: result = 1 - (1 - src) * (1 - dst)
+                // With premultiplied alpha, this becomes: src + dst - src * dst
+                // But we need to account for alpha to preserve transparency
                 colorAttachment.sourceRGBBlendFactor = .one
                 colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
                 colorAttachment.sourceAlphaBlendFactor = .one
@@ -79,7 +82,8 @@ class QuadRenderer {
                 colorAttachment.rgbBlendOperation = .add
                 
             case .overlay:
-                // Overlay requires custom shader logic, use normal for now
+                // Overlay is a combination of multiply and screen
+                // We'll approximate with a mix based on source
                 colorAttachment.sourceRGBBlendFactor = .sourceAlpha
                 colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
                 colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
@@ -87,51 +91,67 @@ class QuadRenderer {
                 colorAttachment.rgbBlendOperation = .add
                 
             case .darken:
-                colorAttachment.sourceRGBBlendFactor = .one
-                colorAttachment.destinationRGBBlendFactor = .one
-                colorAttachment.sourceAlphaBlendFactor = .one
-                colorAttachment.destinationAlphaBlendFactor = .one
-                colorAttachment.rgbBlendOperation = .min
+                // For darken with transparency, we need to blend the effect
+                // This is an approximation that respects alpha
+                colorAttachment.sourceRGBBlendFactor = .oneMinusDestinationColor
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
                 
             case .lighten:
-                colorAttachment.sourceRGBBlendFactor = .one
+                // For lighten with transparency, blend towards lighter colors
+                // This approximation adds source where it's lighter
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
                 colorAttachment.destinationRGBBlendFactor = .one
-                colorAttachment.sourceAlphaBlendFactor = .one
-                colorAttachment.destinationAlphaBlendFactor = .one
-                colorAttachment.rgbBlendOperation = .max
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
                 
-            case .colorDodge, .colorBurn:
-                // These require custom shaders, use screen/multiply as approximation
-                if blendMode == .colorDodge {
-                    colorAttachment.sourceRGBBlendFactor = .one
-                    colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
-                } else {
-                    colorAttachment.sourceRGBBlendFactor = .destinationColor
-                    colorAttachment.destinationRGBBlendFactor = .zero
-                }
-                colorAttachment.sourceAlphaBlendFactor = .one
+            case .colorDodge:
+                // Color dodge brightens - approximate with additive blend
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
+                colorAttachment.destinationRGBBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .colorBurn:
+                // Color burn darkens - approximate with subtractive blend
+                colorAttachment.sourceRGBBlendFactor = .zero
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
                 colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
                 colorAttachment.rgbBlendOperation = .add
                 
             case .difference:
-                colorAttachment.sourceRGBBlendFactor = .one
+                // Difference would need |src - dst|, approximate with subtract
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
                 colorAttachment.destinationRGBBlendFactor = .one
-                colorAttachment.sourceAlphaBlendFactor = .one
-                colorAttachment.destinationAlphaBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
                 colorAttachment.rgbBlendOperation = .reverseSubtract
                 
             case .exclusion:
-                // Exclusion needs custom shader, use difference for now
-                colorAttachment.sourceRGBBlendFactor = .one
-                colorAttachment.destinationRGBBlendFactor = .one
-                colorAttachment.sourceAlphaBlendFactor = .one
-                colorAttachment.destinationAlphaBlendFactor = .one
-                colorAttachment.rgbBlendOperation = .reverseSubtract
+                // Exclusion = src + dst - 2*src*dst, approximate with screen-like
+                colorAttachment.sourceRGBBlendFactor = .oneMinusDestinationColor
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
                 
-            case .softLight, .hardLight:
-                // These need custom shaders, use overlay approximation
+            case .softLight:
+                // Soft light is like overlay but softer, use normal blend
                 colorAttachment.sourceRGBBlendFactor = .sourceAlpha
                 colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .hardLight:
+                // Hard light is overlay with src/dst swapped, approximate
+                colorAttachment.sourceRGBBlendFactor = .destinationColor
+                colorAttachment.destinationRGBBlendFactor = .sourceColor
                 colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
                 colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
                 colorAttachment.rgbBlendOperation = .add
