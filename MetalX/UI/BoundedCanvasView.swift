@@ -95,6 +95,12 @@ struct BoundedCanvasView: UIViewRepresentable {
         private var canvasScale: CGFloat = 1.0
         var lastCanvasSize: CGSize = .zero
         
+        // Alignment guides
+        private var alignmentEngine = AlignmentEngine()
+        private var guideRenderer = GuideRenderer()
+        private var activeGuides: [AlignmentGuide] = []
+        private weak var guideLayer: CALayer?
+        
         init(canvas: Canvas) {
             self.canvas = canvas
             super.init()
@@ -297,15 +303,35 @@ struct BoundedCanvasView: UIViewRepresentable {
                     guard let metalView = metalView else { return }
                     let translation = gesture.translation(in: metalView)
                     
-                    // The metalView is already scaled by the zoom, so we just need to add the translation
-                    // directly to get the movement in canvas coordinates
-                    selectedLayer.transform.position = CGPoint(
+                    // Calculate new position
+                    var newPosition = CGPoint(
                         x: panStartLocation.x + translation.x,
                         y: panStartLocation.y + translation.y
                     )
+                    
+                    // Find alignment guides
+                    activeGuides = alignmentEngine.findAlignmentGuides(
+                        for: selectedLayer,
+                        in: canvas.layers,
+                        canvasSize: metalView.bounds.size
+                    )
+                    
+                    // Snap to guides
+                    newPosition = alignmentEngine.snapPosition(newPosition, for: selectedLayer, guides: activeGuides)
+                    
+                    // Apply the snapped position
+                    selectedLayer.transform.position = newPosition
+                    
+                    // Update guide display
+                    updateGuideDisplay()
+                    
                     canvas.setNeedsDisplay()
                     metalView.setNeedsDisplay()
                 case .ended, .cancelled:
+                    // Hide guides when done
+                    activeGuides = []
+                    updateGuideDisplay()
+                    
                     // Re-enable scroll view after gesture
                     scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
                 default:
@@ -512,5 +538,21 @@ extension BoundedCanvasView.Coordinator: UIGestureRecognizerDelegate {
         }
         
         return true
+    }
+    
+    // MARK: - Alignment Guide Display
+    
+    private func updateGuideDisplay() {
+        // Remove existing guide layer
+        guideLayer?.removeFromSuperlayer()
+        
+        guard !activeGuides.isEmpty, let metalView = metalView else {
+            return
+        }
+        
+        // Create new guide layer
+        let newGuideLayer = guideRenderer.renderGuides(activeGuides, in: metalView)
+        metalView.layer.addSublayer(newGuideLayer)
+        guideLayer = newGuideLayer
     }
 }

@@ -128,8 +128,8 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         // Start with base bounds
         var layerBounds = bounds
         
-        // Add stroke width to bounds
-        if strokeWidth > 0 {
+        // Add stroke width to bounds only when including effects
+        if includeEffects && strokeWidth > 0 {
             let strokePadding = CGFloat(strokeWidth)
             layerBounds = layerBounds.insetBy(dx: -strokePadding, dy: -strokePadding)
         }
