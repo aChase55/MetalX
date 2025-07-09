@@ -62,9 +62,8 @@ class AdvancedBlendRenderer {
         
         // Create a single pipeline that handles all blend modes via uniforms
         if let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) {
-            // Store for all advanced blend modes
-            for mode in [BlendMode.overlay, .softLight, .hardLight, .colorDodge, .colorBurn,
-                         .darken, .lighten, .difference, .exclusion] {
+            // Store for ALL blend modes - we'll handle everything in the shader
+            for mode in BlendMode.allCases {
                 pipelineStates[mode] = pipelineState
             }
         }
@@ -130,6 +129,9 @@ class AdvancedBlendRenderer {
     
     private func blendModeToInt(_ mode: BlendMode) -> Int32 {
         switch mode {
+        case .normal: return -1      // Special case for normal blend
+        case .multiply: return -2    // Special case for multiply
+        case .screen: return -3      // Special case for screen
         case .overlay: return 0
         case .softLight: return 1
         case .hardLight: return 2
@@ -139,7 +141,6 @@ class AdvancedBlendRenderer {
         case .lighten: return 6
         case .difference: return 7
         case .exclusion: return 8
-        default: return 0
         }
     }
 }

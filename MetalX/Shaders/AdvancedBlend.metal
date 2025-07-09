@@ -26,6 +26,8 @@ vertex VertexOut blendVertex(VertexIn in [[stage_in]],
     VertexOut out;
     float4 pos = float4(in.position, 0.0, 1.0);
     out.position = uniforms.transform * pos;
+    // Flip Y in position to match texture coordinate system
+    out.position.y = -out.position.y;
     out.texCoord = in.texCoord;
     return out;
 }
@@ -133,6 +135,15 @@ fragment float4 advancedBlendFragment(VertexOut in [[stage_in]],
     
     // Apply blend mode
     switch (uniforms.blendMode) {
+        case -1: // Normal
+            result = srcColor;
+            break;
+        case -2: // Multiply
+            result = dstColor * srcColor;
+            break;
+        case -3: // Screen
+            result = 1.0 - (1.0 - dstColor) * (1.0 - srcColor);
+            break;
         case 0: // Overlay
             result = blendOverlay(dstColor, srcColor);
             break;
