@@ -434,7 +434,7 @@ struct BoundedCanvasView: UIViewRepresentable {
             
             if let texture = texture {
                 let transform = calculateTransformMatrix(for: layer)
-                quadRenderer?.render(encoder: encoder, texture: texture, transform: transform)
+                quadRenderer?.render(encoder: encoder, texture: texture, transform: transform, opacity: layer.opacity, blendMode: layer.blendMode)
             }
         }
         

@@ -26,6 +26,9 @@ vertex VertexOut simpleVertex(VertexIn in [[stage_in]],
 
 fragment float4 simpleFragment(VertexOut in [[stage_in]],
                                texture2d<float> texture [[texture(0)]],
-                               sampler textureSampler [[sampler(0)]]) {
-    return texture.sample(textureSampler, in.texCoord);
+                               sampler textureSampler [[sampler(0)]],
+                               constant float4& fragmentUniforms [[buffer(1)]]) {
+    float4 color = texture.sample(textureSampler, in.texCoord);
+    color.a *= fragmentUniforms.x; // Apply opacity
+    return color;
 }

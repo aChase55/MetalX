@@ -94,13 +94,17 @@ class QuadRenderer {
                                         options: [])
     }
     
-    func render(encoder: MTLRenderCommandEncoder, texture: MTLTexture, transform: simd_float4x4 = matrix_identity_float4x4) {
+    func render(encoder: MTLRenderCommandEncoder, texture: MTLTexture, transform: simd_float4x4 = matrix_identity_float4x4, opacity: Float = 1.0, blendMode: BlendMode = .normal) {
         encoder.setRenderPipelineState(pipelineState!)
         encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
         // Pass transform matrix as uniform
         var uniforms = transform
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<simd_float4x4>.size, index: 1)
+        
+        // Pass opacity as uniform
+        var fragmentUniforms = simd_float4(opacity, 0, 0, 0)
+        encoder.setFragmentBytes(&fragmentUniforms, length: MemoryLayout<simd_float4>.size, index: 1)
         
         encoder.setFragmentTexture(texture, index: 0)
         

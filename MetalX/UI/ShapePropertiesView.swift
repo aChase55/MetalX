@@ -161,9 +161,7 @@ struct ShapePropertiesView: View {
                     .font(.caption)
             }
         }
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
+        .padding(.vertical)
         .sheet(isPresented: $showingGradientEditor) {
             GradientEditorView(gradientData: $currentGradient) {
                 applyGradient()

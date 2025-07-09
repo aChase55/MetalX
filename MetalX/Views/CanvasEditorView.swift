@@ -48,41 +48,6 @@ struct CanvasEditorView: View {
                     
                     Spacer()
                     
-                    // Selected layer indicator
-                    if let selectedLayer = canvas.selectedLayer {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Selected")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.7))
-                                Text(selectedLayer.name)
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-                            }
-                            
-                            Divider()
-                                .frame(height: 30)
-                                .background(Color.white.opacity(0.3))
-                            
-                            // Deselect button
-                            Button(action: { 
-                                canvas.selectLayer(nil)
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.black.opacity(0.8))
-                        .cornerRadius(20)
-                        .transition(.opacity.combined(with: .scale))
-                    }
-                    
-                    Spacer()
-                    
                     // Add content button
                     Button(action: { showingAddMenu.toggle() }) {
                         Image(systemName: "plus.circle.fill")
@@ -97,37 +62,35 @@ struct CanvasEditorView: View {
                 
                 Spacer()
                 
-                // Bottom area
-                HStack(alignment: .bottom) {
+                // Bottom area - Selected layer pill
+                VStack {
                     // Save status
-                    VStack {
-                        if hasUnsavedChanges {
-                            Label("Unsaved changes", systemImage: "exclamationmark.circle.fill")
-                                .foregroundColor(.orange)
-                                .font(.caption)
-                                .padding(8)
-                                .background(Color.black.opacity(0.7))
-                                .cornerRadius(8)
-                        } else {
-                            Label("All changes saved", systemImage: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .font(.caption)
-                                .padding(8)
-                                .background(Color.black.opacity(0.7))
-                                .cornerRadius(8)
+                    HStack {
+                        VStack {
+                            if hasUnsavedChanges {
+                                Label("Unsaved changes", systemImage: "exclamationmark.circle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.7))
+                                    .cornerRadius(8)
+                            } else {
+                                Label("All changes saved", systemImage: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.caption)
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.7))
+                                    .cornerRadius(8)
+                            }
                         }
+                        Spacer()
                     }
+                    .padding(.horizontal)
                     
-                    Spacer()
-                    
-                    // Shape properties panel
-                    if canvas.selectedLayer is VectorShapeLayer {
-                        ShapePropertiesView(canvas: canvas)
-                            .frame(width: 300)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
+                    // Selected layer pill
+                    SelectedLayerPill(canvas: canvas)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding()
             }
             
             // Sidebar overlay (slides in from left)

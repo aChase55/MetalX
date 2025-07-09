@@ -97,6 +97,10 @@ class Canvas: ObservableObject {
     // Mark canvas as needing redraw
     func setNeedsDisplay() {
         needsDisplay = true
+        NotificationCenter.default.post(
+            name: NSNotification.Name("CanvasNeedsDisplay"),
+            object: self
+        )
     }
 }
 
