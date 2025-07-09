@@ -79,6 +79,7 @@ struct ProjectCard: View {
     let onDelete: () -> Void
     
     @State private var isHovering = false
+    @State private var showingOptions = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -92,6 +93,23 @@ struct ProjectCard: View {
                         .foregroundColor(.gray.opacity(0.5))
                 )
                 .overlay(alignment: .topTrailing) {
+                    // Show menu button on iOS, delete on hover for macOS
+                    #if os(iOS)
+                    Menu {
+                        Button(role: .destructive) {
+                            onDelete()
+                        } label: {
+                            Label("Delete Project", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
+                    }
+                    .padding(8)
+                    #else
                     if isHovering {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
@@ -102,6 +120,7 @@ struct ProjectCard: View {
                         }
                         .padding(8)
                     }
+                    #endif
                 }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -124,6 +143,13 @@ struct ProjectCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(radius: 2)
         .onTapGesture(perform: onTap)
+        .contextMenu {
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete Project", systemImage: "trash")
+            }
+        }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering

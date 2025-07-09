@@ -116,6 +116,9 @@ struct BoundedCanvasView: UIViewRepresentable {
             // Update scroll view interaction based on selection
             scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
             scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
+            
+            // Force redraw to update selection rendering
+            metalView?.setNeedsDisplay()
         }
         
         func setupQuadRenderer() {
