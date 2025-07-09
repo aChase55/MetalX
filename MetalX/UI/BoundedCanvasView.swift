@@ -84,6 +84,9 @@ struct BoundedCanvasView: UIViewRepresentable {
         
         private var commandQueue: MTLCommandQueue?
         private var quadRenderer: QuadRenderer?
+        private var advancedBlendRenderer: AdvancedBlendRenderer?
+        private var accumulationTexture: MTLTexture?
+        private var tempTexture: MTLTexture?
         
         // Gesture handling
         private var panStartLocation: CGPoint = .zero
@@ -143,6 +146,7 @@ struct BoundedCanvasView: UIViewRepresentable {
         func setupQuadRenderer() {
             guard let device = metalView?.device else { return }
             quadRenderer = QuadRenderer(device: device)
+            advancedBlendRenderer = AdvancedBlendRenderer(device: device)
             commandQueue = device.makeCommandQueue()
             
             // Set initial scroll view state
@@ -387,7 +391,21 @@ struct BoundedCanvasView: UIViewRepresentable {
         // MARK: - MTKViewDelegate
         
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-            // Canvas size is fixed, not dependent on view size
+            // Create accumulation texture if needed
+            guard size.width > 0, size.height > 0,
+                  let device = view.device else { return }
+            
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .bgra8Unorm,
+                width: Int(size.width),
+                height: Int(size.height),
+                mipmapped: false
+            )
+            descriptor.usage = [.shaderRead, .renderTarget]
+            descriptor.storageMode = .shared
+            
+            accumulationTexture = device.makeTexture(descriptor: descriptor)
+            tempTexture = device.makeTexture(descriptor: descriptor)
         }
         
         func draw(in view: MTKView) {
@@ -395,22 +413,35 @@ struct BoundedCanvasView: UIViewRepresentable {
             
             guard let drawable = view.currentDrawable,
                   let descriptor = view.currentRenderPassDescriptor,
-                  let commandBuffer = commandQueue?.makeCommandBuffer(),
-                  let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+                  let commandBuffer = commandQueue?.makeCommandBuffer() else { return }
             
-            // Render each layer
-            for layer in canvas.layers {
-                if layer.isVisible {
-                    renderLayer(layer, encoder: encoder)
+            // Check if any visible layer needs advanced blending
+            let needsAdvancedBlending = canvas.layers.contains { layer in
+                layer.isVisible && needsDestinationTexture(layer.blendMode)
+            }
+            
+            if needsAdvancedBlending {
+                // Advanced rendering path with intermediate textures
+                renderWithAdvancedBlending(drawable: drawable, descriptor: descriptor, commandBuffer: commandBuffer)
+            } else {
+                // Simple rendering path - direct to screen
+                guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+                
+                // Render each layer
+                for layer in canvas.layers {
+                    if layer.isVisible {
+                        renderLayer(layer, encoder: encoder)
+                    }
                 }
+                
+                // Draw selection if needed
+                if let selectedLayer = canvas.selectedLayer {
+                    renderSelection(for: selectedLayer, encoder: encoder)
+                }
+                
+                encoder.endEncoding()
             }
             
-            // Draw selection if needed
-            if let selectedLayer = canvas.selectedLayer {
-                renderSelection(for: selectedLayer, encoder: encoder)
-            }
-            
-            encoder.endEncoding()
             commandBuffer.present(drawable)
             commandBuffer.commit()
             
@@ -447,6 +478,139 @@ struct BoundedCanvasView: UIViewRepresentable {
                 viewportSize: metalView?.bounds.size ?? .zero,
                 time: time
             )
+        }
+        
+        private func needsDestinationTexture(_ blendMode: BlendMode) -> Bool {
+            switch blendMode {
+            case .normal, .multiply, .screen:
+                return false
+            case .overlay, .softLight, .hardLight, .colorDodge, .colorBurn,
+                 .darken, .lighten, .difference, .exclusion:
+                return true
+            }
+        }
+        
+        private func renderWithAdvancedBlending(drawable: CAMetalDrawable, descriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) {
+            guard let accumulationTexture = accumulationTexture,
+                  let tempTexture = tempTexture,
+                  let advancedBlendRenderer = advancedBlendRenderer else {
+                // Fall back to simple rendering if textures not ready
+                guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+                for layer in canvas.layers where layer.isVisible {
+                    renderLayer(layer, encoder: encoder)
+                }
+                if let selectedLayer = canvas.selectedLayer {
+                    renderSelection(for: selectedLayer, encoder: encoder)
+                }
+                encoder.endEncoding()
+                return
+            }
+            
+            
+            // Clear accumulation texture
+            let clearDescriptor = MTLRenderPassDescriptor()
+            clearDescriptor.colorAttachments[0].texture = accumulationTexture
+            clearDescriptor.colorAttachments[0].loadAction = .clear
+            clearDescriptor.colorAttachments[0].clearColor = descriptor.colorAttachments[0].clearColor
+            clearDescriptor.colorAttachments[0].storeAction = .store
+            
+            guard let clearEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: clearDescriptor) else { return }
+            clearEncoder.endEncoding()
+            
+            // Render each layer
+            var currentTexture = accumulationTexture
+            var targetTexture = tempTexture
+            
+            for layer in canvas.layers where layer.isVisible {
+                if needsDestinationTexture(layer.blendMode) && advancedBlendRenderer.canRender(blendMode: layer.blendMode) {
+                    // Get layer texture
+                    guard let layerTexture = getLayerTexture(layer) else { continue }
+                    
+                    
+                    // Copy current to target first
+                    if let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
+                        blitEncoder.copy(
+                            from: currentTexture,
+                            sourceSlice: 0,
+                            sourceLevel: 0,
+                            sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                            sourceSize: MTLSize(width: currentTexture.width, height: currentTexture.height, depth: 1),
+                            to: targetTexture,
+                            destinationSlice: 0,
+                            destinationLevel: 0,
+                            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
+                        )
+                        blitEncoder.endEncoding()
+                    }
+                    
+                    // Render with advanced blending
+                    let blendDescriptor = MTLRenderPassDescriptor()
+                    blendDescriptor.colorAttachments[0].texture = targetTexture
+                    blendDescriptor.colorAttachments[0].loadAction = .load
+                    blendDescriptor.colorAttachments[0].storeAction = .store
+                    
+                    if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: blendDescriptor) {
+                        let transform = calculateTransformMatrix(for: layer)
+                        
+                        
+                        advancedBlendRenderer.render(
+                            encoder: encoder,
+                            sourceTexture: layerTexture,
+                            destinationTexture: currentTexture,  // Read from current
+                            transform: transform,
+                            opacity: layer.opacity,
+                            blendMode: layer.blendMode
+                        )
+                        encoder.endEncoding()
+                    }
+                    
+                    // Swap textures
+                    swap(&currentTexture, &targetTexture)
+                } else {
+                    // Render with standard blending to current texture
+                    let standardDescriptor = MTLRenderPassDescriptor()
+                    standardDescriptor.colorAttachments[0].texture = currentTexture
+                    standardDescriptor.colorAttachments[0].loadAction = .load
+                    standardDescriptor.colorAttachments[0].storeAction = .store
+                    
+                    if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: standardDescriptor) {
+                        renderLayer(layer, encoder: encoder)
+                        encoder.endEncoding()
+                    }
+                }
+            }
+            
+            // Final pass: copy the current texture to drawable
+            if let finalEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) {
+                quadRenderer?.render(
+                    encoder: finalEncoder,
+                    texture: currentTexture,  // Use whichever texture has the final result
+                    transform: matrix_identity_float4x4,
+                    opacity: 1.0,
+                    blendMode: .normal
+                )
+                
+                // Draw selection on top
+                if let selectedLayer = canvas.selectedLayer {
+                    renderSelection(for: selectedLayer, encoder: finalEncoder)
+                }
+                
+                finalEncoder.endEncoding()
+            }
+        }
+        
+        private func getLayerTexture(_ layer: any Layer) -> MTLTexture? {
+            if let imageLayer = layer as? ImageLayer {
+                return imageLayer.texture
+            } else if let textLayer = layer as? TextLayer {
+                return textLayer.texture
+            } else if let shapeLayer = layer as? VectorShapeLayer {
+                if let metalDevice = try? MetalDevice(preferredDevice: metalView!.device!) {
+                    let context = RenderContext(device: metalDevice)
+                    return shapeLayer.render(context: context)
+                }
+            }
+            return nil
         }
         
         private func calculateTransformMatrix(for layer: any Layer) -> simd_float4x4 {
