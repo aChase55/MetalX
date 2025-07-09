@@ -44,13 +44,10 @@ class TextLayer: BaseLayer {
     
     private func updateTexture() {
         guard let textRenderer = textRenderer else {
-            print("TextLayer: No text renderer available")
             texture = nil
             bounds = .zero
             return
         }
-        
-        print("TextLayer: Creating texture for '\(text)'")
         
         // Create texture using the proper renderer
         texture = textRenderer.createTextTexture(
@@ -66,10 +63,7 @@ class TextLayer: BaseLayer {
                 origin: .zero,
                 size: CGSize(width: texture.width / 2, height: texture.height / 2)
             )
-            print("TextLayer: Successfully created texture with size \(texture.width)x\(texture.height)")
-            print("TextLayer: Bounds set to \(bounds)")
         } else {
-            print("TextLayer: Failed to create texture")
             bounds = .zero
         }
     }

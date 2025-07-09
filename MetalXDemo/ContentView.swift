@@ -275,7 +275,7 @@ struct ContentView: View {
                 await demoViewModel.loadImage(from: data)
             }
         } catch {
-            print("Failed to load image: \(error)")
+            // Failed to load image
         }
     }
 }

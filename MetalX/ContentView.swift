@@ -45,6 +45,20 @@ struct ContentView: View {
                         Button("Text") {
                             showingTextInput = true
                         }
+                        Menu("Shape") {
+                            Button("Rectangle") {
+                                addShapeLayer(.rectangle)
+                            }
+                            Button("Circle") {
+                                addShapeLayer(.circle)
+                            }
+                            Button("Triangle") {
+                                addShapeLayer(.triangle)
+                            }
+                            Button("Hexagon") {
+                                addShapeLayer(.hexagon)
+                            }
+                        }
                     } label: {
                         Label("Add Layer", systemImage: "plus")
                     }
@@ -75,7 +89,6 @@ struct ContentView: View {
         .alert("Add Text", isPresented: $showingTextInput) {
             TextField("Text", text: $newTextContent)
             Button("Add") {
-                print("Adding text layer with content: '\(newTextContent)'")
                 if !newTextContent.isEmpty {
                     addTextLayer(newTextContent)
                 }
@@ -158,17 +171,14 @@ struct ContentView: View {
     }
     
     private func addTextLayer(_ text: String) {
-        guard !text.isEmpty else { 
-            print("addTextLayer: Empty text, returning")
-            return 
-        }
+        guard !text.isEmpty else { return }
         
-        print("Creating text layer with text: '\(text)'")
         let textLayer = TextLayer(text: text)
         textLayer.name = "Text: \(text)"
         textLayer.textColor = .white
         textLayer.font = UIFont.systemFont(ofSize: 72, weight: .bold)
         textLayer.forceUpdateTexture() // Update texture after setting properties
+        
         // Center in canvas - use screen center for now
         let screenBounds = UIScreen.main.bounds
         textLayer.transform.position = CGPoint(
@@ -176,11 +186,53 @@ struct ContentView: View {
             y: screenBounds.height / 3  // Upper third for better visibility
         )
         
-        print("Text layer texture: \(textLayer.texture)")
-        print("Text layer bounds: \(textLayer.bounds)")
-        
         canvas.addLayer(textLayer)
         canvas.selectLayer(textLayer)
+    }
+    
+    private enum ShapeType {
+        case rectangle
+        case circle
+        case triangle
+        case hexagon
+    }
+    
+    private func addShapeLayer(_ type: ShapeType) {
+        let shapeLayer: VectorShapeLayer
+        let size: CGFloat = 200
+        
+        // Creating new shape: \(type) with size: \(size)
+        
+        switch type {
+        case .rectangle:
+            shapeLayer = VectorShapeLayer.rectangle(size: CGSize(width: size, height: size))
+        case .circle:
+            shapeLayer = VectorShapeLayer.ellipse(size: CGSize(width: size, height: size))
+            shapeLayer.name = "Circle"
+        case .triangle:
+            shapeLayer = VectorShapeLayer.polygon(sides: 3, radius: size)
+            shapeLayer.name = "Triangle"
+        case .hexagon:
+            shapeLayer = VectorShapeLayer.polygon(sides: 6, radius: size)
+            shapeLayer.name = "Hexagon"
+        }
+        
+        // Random color
+        let colors: [UIColor] = [.systemRed, .systemBlue, .systemGreen, .systemOrange, .systemPurple, .systemTeal]
+        let color = colors.randomElement() ?? .systemBlue
+        shapeLayer.fillType = .solid(color.cgColor)
+        
+        // Center in canvas
+        let screenBounds = UIScreen.main.bounds
+        shapeLayer.transform.position = CGPoint(
+            x: screenBounds.width / 2,
+            y: screenBounds.height / 2
+        )
+        
+        // Shape created with bounds: \(shapeLayer.bounds)
+        
+        canvas.addLayer(shapeLayer)
+        canvas.selectLayer(shapeLayer)
     }
 }
 

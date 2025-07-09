@@ -40,7 +40,7 @@ class ImageLayer: BaseLayer {
                 .generateMipmaps: false
             ])
         } catch {
-            print("Failed to create texture: \(error)")
+            // Failed to create texture
             texture = nil
         }
     }

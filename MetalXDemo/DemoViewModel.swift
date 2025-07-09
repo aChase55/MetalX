@@ -62,13 +62,13 @@ class DemoViewModel: ObservableObject {
             renderEngine = try RenderEngine(configuration: config)
             isEngineReady = true
             
-            print("MetalX RenderEngine initialized successfully")
+            // Debug log removed
             
             // Update statistics immediately
             updateStatistics()
             
         } catch {
-            print("Failed to initialize RenderEngine: \(error)")
+            // Debug log removed
             lastError = error
             isEngineReady = false
         }
@@ -96,10 +96,10 @@ class DemoViewModel: ObservableObject {
             let imageURL = await saveTextureAsImage(texture, filename: "current-image.png")
             currentImageURL = imageURL
             
-            print("Loaded image: \(texture.width)x\(texture.height)")
+            // Debug log removed
             
         } catch {
-            print("Failed to load image: \(error)")
+            // Debug log removed
             lastError = error
         }
     }
@@ -121,10 +121,10 @@ class DemoViewModel: ObservableObject {
             let imageURL = await saveTextureAsImage(sampleTexture, filename: "sample-image.png")
             currentImageURL = imageURL
             
-            print("Loaded sample image: \(sampleTexture.width)x\(sampleTexture.height)")
+            // Debug log removed
             
         } catch {
-            print("Failed to create sample image: \(error)")
+            // Debug log removed
             lastError = error
         }
     }
@@ -158,7 +158,7 @@ class DemoViewModel: ObservableObject {
             currentImageURL = imageURL
             
         } catch {
-            print("Failed to apply adjustments: \(error)")
+            // Debug log removed
             lastError = error
         }
     }
@@ -183,10 +183,10 @@ class DemoViewModel: ObservableObject {
             let imageURL = await saveTextureAsImage(blurredTexture, filename: "blurred-image.png")
             currentImageURL = imageURL
             
-            print("Applied blur effect")
+            // Debug log removed
             
         } catch {
-            print("Failed to apply blur: \(error)")
+            // Debug log removed
             lastError = error
         }
     }
@@ -216,12 +216,12 @@ class DemoViewModel: ObservableObject {
             let exportURL = await saveTextureAsImage(texture, filename: "metalx-export-\(Date().timeIntervalSince1970).png")
             
             if let url = exportURL {
-                print("Image exported to: \(url)")
+                // Debug log removed
                 // In a real app, you might save to Photos library or share
             }
             
         } catch {
-            print("Failed to export image: \(error)")
+            // Debug log removed
             lastError = error
         }
     }
@@ -372,7 +372,7 @@ class DemoViewModel: ObservableObject {
                     }
                     
                 } catch {
-                    print("Failed to save texture as image: \(error)")
+                    // Debug log removed
                     continuation.resume(returning: nil)
                 }
             }

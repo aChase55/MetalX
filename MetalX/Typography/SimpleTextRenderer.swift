@@ -50,7 +50,6 @@ class SimpleTextRenderer {
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
         ) else {
-            print("Failed to create CGContext for text")
             return nil
         }
         
@@ -71,7 +70,6 @@ class SimpleTextRenderer {
         
         // Create texture from context
         guard let image = context.makeImage() else {
-            print("Failed to create CGImage from context")
             return nil
         }
         
@@ -85,7 +83,6 @@ class SimpleTextRenderer {
         textureDescriptor.usage = [.shaderRead]
         
         guard let texture = device.makeTexture(descriptor: textureDescriptor) else {
-            print("Failed to create Metal texture")
             return nil
         }
         
@@ -109,8 +106,6 @@ class SimpleTextRenderer {
                 commandBuffer.commit()
                 commandBuffer.waitUntilCompleted()
             }
-            
-            print("Created text texture: \(texture.width)x\(texture.height), format: \(texture.pixelFormat.rawValue)")
         }
         
         return texture

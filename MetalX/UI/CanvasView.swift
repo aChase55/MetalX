@@ -144,26 +144,18 @@ struct CanvasView: UIViewRepresentable {
         
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             let location = gesture.location(in: gesture.view)
-            print("Tap at location: \(location)")
             
             // Hit test layers from top to bottom
             for layer in canvas.layers.reversed() {
                 let hit = layer.hitTest(point: location)
                 let transformedBounds = layer.getBounds(includeEffects: false)
-                print("Testing layer \(layer.name):")
-                print("  - Raw bounds: \(layer.bounds)")
-                print("  - Transformed bounds: \(transformedBounds)")
-                print("  - Tap location: \(location)")
-                print("  - Hit: \(hit)")
                 if hit {
-                    print("Selected layer: \(layer.name)")
                     canvas.selectLayer(layer)
                     return
                 }
             }
             
             // No layer hit, deselect
-            print("No layer hit, deselecting")
             canvas.selectLayer(nil)
         }
         
@@ -180,14 +172,13 @@ struct CanvasView: UIViewRepresentable {
             }
             
             guard let selectedLayer = canvas.selectedLayer else { 
-                print("Pan: No selected layer")
                 return 
             }
             
             switch gesture.state {
             case .began:
                 panStartLocation = selectedLayer.transform.position
-                print("Pan began - start position: \(panStartLocation)")
+                print("Pan gesture started - initial position: \(panStartLocation)")
             case .changed:
                 let translation = gesture.translation(in: gesture.view)
                 var newPosition = CGPoint(
@@ -206,17 +197,18 @@ struct CanvasView: UIViewRepresentable {
                 newPosition = alignmentEngine.snapPosition(newPosition, for: selectedLayer, guides: activeGuides)
                 
                 selectedLayer.transform.position = newPosition
-                print("Pan changed - new position: \(selectedLayer.transform.position)")
                 
                 // Update guide display
                 updateGuideDisplay()
                 
                 canvas.setNeedsDisplay()
                 setNeedsDisplay()
-            default:
+            case .ended, .cancelled:
+                print("Pan gesture ended - final position: \(selectedLayer.transform.position)")
                 // Hide guides when done
                 activeGuides = []
                 updateGuideDisplay()
+            default:
                 break
             }
         }
@@ -236,10 +228,13 @@ struct CanvasView: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 pinchStartScale = selectedLayer.transform.scale
+                print("Pinch gesture started - initial scale: \(pinchStartScale)")
             case .changed:
                 selectedLayer.transform.scale = pinchStartScale * gesture.scale
                 canvas.setNeedsDisplay()
                 setNeedsDisplay()
+            case .ended, .cancelled:
+                print("Pinch gesture ended - final scale: \(selectedLayer.transform.scale)")
             default:
                 break
             }
@@ -251,11 +246,14 @@ struct CanvasView: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 rotationStartAngle = selectedLayer.transform.rotation
+                print("Rotation gesture started - initial angle: \(rotationStartAngle)")
             case .changed:
                 // Use positive rotation for correct direction
                 selectedLayer.transform.rotation = rotationStartAngle + CGFloat(gesture.rotation)
                 canvas.setNeedsDisplay()
                 setNeedsDisplay()
+            case .ended, .cancelled:
+                print("Rotation gesture ended - final angle: \(selectedLayer.transform.rotation)")
             default:
                 break
             }
@@ -276,7 +274,6 @@ struct CanvasView: UIViewRepresentable {
             guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
             
             // Debug: log rendering
-            print("Canvas rendering with \(canvas.layers.count) layers")
             
             // Render each layer
             for layer in canvas.layers {
@@ -301,10 +298,26 @@ struct CanvasView: UIViewRepresentable {
                 texture = imageLayer.texture
             } else if let textLayer = layer as? TextLayer {
                 texture = textLayer.texture
+            } else if let shapeLayer = layer as? VectorShapeLayer {
+                // Shape layers render themselves - just get their texture
+                // The shape layer handles its own render context internally
+                print("\nCanvasView: Rendering shape layer '\(shapeLayer.name)'")
+                print("  Layer bounds: \(shapeLayer.bounds)")
+                print("  Layer transform: pos=\(shapeLayer.transform.position), scale=\(shapeLayer.transform.scale)")
+                
+                if let metalDevice = try? MetalDevice(preferredDevice: device) {
+                    let context = RenderContext(device: metalDevice)
+                    texture = shapeLayer.render(context: context)
+                    
+                    if let texture = texture {
+                        print("  Got texture: \(texture.width)x\(texture.height)")
+                    } else {
+                        print("  No texture returned!")
+                    }
+                }
             }
             
             if let texture = texture {
-                print("Rendering layer: \(layer.name) with texture: \(texture)")
                 
                 // Calculate transform matrix
                 let transform = calculateTransformMatrix(for: layer, canvasSize: metalView?.bounds.size ?? CGSize(width: 1024, height: 1024))
@@ -325,7 +338,7 @@ struct CanvasView: UIViewRepresentable {
                     )
                 }
             } else {
-                print("Skipping layer: \(layer.name) - no texture available")
+                // Skipping layer - no texture available
             }
         }
         
