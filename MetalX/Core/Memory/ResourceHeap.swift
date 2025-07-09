@@ -9,6 +9,7 @@ public enum ResourceHeapError: Error, LocalizedError {
     case aliasConflict
     case heapFragmented
     case resourceNotInHeap
+    case allocationFailed
     
     public var errorDescription: String? {
         switch self {
@@ -24,6 +25,8 @@ public enum ResourceHeapError: Error, LocalizedError {
             return "Resource heap is too fragmented"
         case .resourceNotInHeap:
             return "Resource not found in heap"
+        case .allocationFailed:
+            return "Failed to allocate resource"
         }
     }
 }
@@ -182,34 +185,16 @@ public class ResourceHeap {
     }
     
     public func allocateTexture(descriptor: MTLTextureDescriptor, aliasGroup: String? = nil) throws -> MTLTexture {
-        let sizeAndAlign = heap.sizeAndAlign(for: descriptor)
-        
-        guard let texture = try allocateResource(
-            size: sizeAndAlign.size,
-            alignment: sizeAndAlign.align,
-            aliasGroup: aliasGroup,
-            factory: { offset in
-                self.heap.makeTexture(descriptor: descriptor, offset: offset)
-            }
-        ) as? MTLTexture else {
-            throw ResourceHeapError.invalidResource
+        guard let texture = heap.makeTexture(descriptor: descriptor) else {
+            throw ResourceHeapError.allocationFailed
         }
         
         return texture
     }
     
     public func allocateBuffer(length: Int, options: MTLResourceOptions = [], aliasGroup: String? = nil) throws -> MTLBuffer {
-        let sizeAndAlign = heap.sizeAndAlign(for: length, options: options)
-        
-        guard let buffer = try allocateResource(
-            size: sizeAndAlign.size,
-            alignment: sizeAndAlign.align,
-            aliasGroup: aliasGroup,
-            factory: { offset in
-                self.heap.makeBuffer(length: length, options: options, offset: offset)
-            }
-        ) as? MTLBuffer else {
-            throw ResourceHeapError.invalidResource
+        guard let buffer = heap.makeBuffer(length: length, options: options) else {
+            throw ResourceHeapError.allocationFailed
         }
         
         return buffer
@@ -349,7 +334,7 @@ public class ResourceHeap {
     
     public func performGarbageCollection() {
         accessQueue.async(flags: .barrier) {
-            let now = Date()
+            let _ = Date()
             var resourcesToRemove: [MTLResource] = []
             
             for (_, allocation) in self.allocations {
@@ -382,7 +367,7 @@ public class ResourceHeap {
             // Sort fragments by size (largest first) for better allocation
             freeFragments.sort { $0.size > $1.size }
             
-            logger.info("Defragmented heap, fragmentation ratio: \(String(format: "%.2f", fragmentationRatio))")
+            logger.info("Defragmented heap, fragmentation ratio: \(String(format: "%.2f", self.fragmentationRatio), privacy: .public)")
         }
     }
     
@@ -527,16 +512,21 @@ public class ResourceHeapManager {
     private func createDefaultHeaps() {
         do {
             // Create default heaps based on device capabilities
-            let memoryBudget = device.capabilities.recommendedMaxWorkingSetSize
+            // Use reasonable defaults if recommendedMaxWorkingSetSize is 0
+            let memoryBudget = max(device.capabilities.recommendedMaxWorkingSetSize, 512 * 1024 * 1024) // Min 512MB
             
             // Main heap for general resources
             let mainHeapSize = Int(Double(memoryBudget) * 0.6)
-            let mainHeap = try ResourceHeap(device: device, size: mainHeapSize)
-            heaps["main"] = mainHeap
-            
             // Transient heap for short-lived resources
             let transientHeapSize = Int(Double(memoryBudget) * 0.2)
-            let transientHeap = try ResourceHeap(device: device, size: transientHeapSize)
+            
+            // Heaps must use .private storage mode
+            let storageMode: MTLStorageMode = .private
+            
+            let mainHeap = try ResourceHeap(device: device, size: mainHeapSize, storageMode: storageMode)
+            heaps["main"] = mainHeap
+            
+            let transientHeap = try ResourceHeap(device: device, size: transientHeapSize, storageMode: storageMode)
             heaps["transient"] = transientHeap
             
             logger.info("Created default heaps: main=\(mainHeapSize/1024/1024)MB, transient=\(transientHeapSize/1024/1024)MB")

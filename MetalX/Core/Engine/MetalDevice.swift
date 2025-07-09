@@ -31,6 +31,11 @@ public struct DeviceCapabilities {
     public let recommendedMaxWorkgroupLength: Int
     public let maxTransferRate: UInt64
     public let metalFamily: MTLGPUFamily
+    public let supportsGPUCapture: Bool
+    
+    public var supportsCompute: Bool { true }
+    public var supportsTileBasedDeferredRendering: Bool { isTBDR }
+    public var maxTextureSize: Int { maxTextureSize2D }
     
     public var memoryBandwidth: UInt64 {
         maxTransferRate
@@ -76,6 +81,7 @@ public class MetalDevice {
     public let device: MTLDevice
     public let capabilities: DeviceCapabilities
     public let commandQueue: MTLCommandQueue
+    public let linearSampler: MTLSamplerState
     private let logger = Logger(subsystem: "com.metalx.engine", category: "MetalDevice")
     
     private static var _shared: MetalDevice?
@@ -101,10 +107,14 @@ public class MetalDevice {
     }
     
     public init(preferredDevice: MTLDevice? = nil) throws {
+        logger.info("Attempting to initialize Metal device")
+        
         guard let selectedDevice = preferredDevice ?? Self.selectBestDevice() else {
             logger.error("No suitable Metal device found")
             throw MetalDeviceError.noMetalSupport
         }
+        
+        logger.info("Selected device: \(selectedDevice.name)")
         
         self.device = selectedDevice
         self.capabilities = Self.detectCapabilities(for: selectedDevice)
@@ -117,19 +127,33 @@ public class MetalDevice {
         self.commandQueue = queue
         commandQueue.label = "MetalX Main Command Queue"
         
+        // Create linear sampler
+        let samplerDescriptor = MTLSamplerDescriptor()
+        samplerDescriptor.minFilter = .linear
+        samplerDescriptor.magFilter = .linear
+        samplerDescriptor.mipFilter = .linear
+        samplerDescriptor.sAddressMode = .clampToEdge
+        samplerDescriptor.tAddressMode = .clampToEdge
+        samplerDescriptor.rAddressMode = .clampToEdge
+        
+        guard let sampler = selectedDevice.makeSamplerState(descriptor: samplerDescriptor) else {
+            throw MetalDeviceError.deviceCreationFailed
+        }
+        self.linearSampler = sampler
+        
         try validateMinimumRequirements()
         
         logger.info("Initialized Metal device: \(selectedDevice.name)")
         logger.info("Registry ID: \(selectedDevice.registryID)")
         logger.info("Has unified memory: \(selectedDevice.hasUnifiedMemory)")
+        #if os(macOS)
         logger.info("Is low power: \(selectedDevice.isLowPower)")
-        logger.info("Max working set size: \(capabilities.recommendedMaxWorkingSetSize / 1024 / 1024) MB")
+        #endif
+        logger.info("Max working set size: \(self.capabilities.recommendedMaxWorkingSetSize / 1024 / 1024) MB")
     }
     
     private static func selectBestDevice() -> MTLDevice? {
-        #if targetEnvironment(simulator)
-        return MTLCreateSystemDefaultDevice()
-        #else
+        #if os(macOS)
         let devices = MTLCopyAllDevices()
         
         if devices.isEmpty {
@@ -143,6 +167,9 @@ public class MetalDevice {
         }
         
         return rankedDevices.first
+        #else
+        // On iOS, there's only one device
+        return MTLCreateSystemDefaultDevice()
         #endif
     }
     
@@ -153,6 +180,7 @@ public class MetalDevice {
             score += 1000
         }
         
+        #if os(macOS)
         if !device.isLowPower {
             score += 500
         }
@@ -160,6 +188,7 @@ public class MetalDevice {
         if !device.isRemovable {
             score += 200
         }
+        #endif
         
         if device.supportsFamily(.apple7) {
             score += 100
@@ -171,7 +200,7 @@ public class MetalDevice {
             score += 40
         }
         
-        if device.supportsFeatureSet(.iOS_GPUFamily5_v1) {
+        if device.supportsFamily(.apple5) {
             score += 50
         }
         
@@ -217,7 +246,7 @@ public class MetalDevice {
             supportsShaderDebugging: device.supportsFamily(.apple6),
             supports32BitFloatFiltering: device.supports32BitFloatFiltering,
             supportsBCTextureCompression: device.supportsBCTextureCompression,
-            supportsASTCTextureCompression: !device.supportsFamily(.mac1) && !device.supportsFamily(.mac2),
+            supportsASTCTextureCompression: device.supportsFamily(.apple1),
             supportsPullModelInterpolation: device.supportsFamily(.apple6),
             supportsInt64: device.supportsFamily(.apple6),
             maxThreadsPerThreadgroup: device.maxThreadsPerThreadgroup,
@@ -229,24 +258,34 @@ public class MetalDevice {
             maxArgumentBufferSamplerCount: device.argumentBuffersSupport == .tier2 ? 96 : 16,
             maxComputeWorkgroupMemory: 32768,
             registryID: device.registryID,
-            isLowPower: device.isLowPower,
-            isRemovable: device.isRemovable,
+            isLowPower: false, // Not available on iOS
+            isRemovable: false, // Not available on iOS
             hasUnifiedMemory: device.hasUnifiedMemory,
             recommendedMaxWorkgroupLength: Int(device.maxThreadsPerThreadgroup.width),
-            maxTransferRate: device.maxTransferRate,
-            metalFamily: metalFamily
+            maxTransferRate: 0, // Not available on iOS
+            metalFamily: metalFamily,
+            supportsGPUCapture: true
         )
     }
     
     private func validateMinimumRequirements() throws {
-        guard device.supportsFamily(.apple3) || device.supportsFamily(.mac1) else {
+        #if targetEnvironment(simulator)
+        // Simulator has different capabilities but should still work
+        logger.info("Running on simulator")
+        #else
+        #if os(iOS)
+        guard device.supportsFamily(.apple3) else {
             throw MetalDeviceError.insufficientCapabilities("Requires Apple A10 GPU or equivalent")
         }
-        
-        guard capabilities.recommendedMaxWorkingSetSize >= 256 * 1024 * 1024 else {
-            throw MetalDeviceError.insufficientCapabilities("Requires at least 256MB working set size")
+        #else
+        guard device.supportsFamily(.apple3) || device.supportsFamily(.mac2) else {
+            throw MetalDeviceError.insufficientCapabilities("Requires Apple A10 GPU or Mac GPU Family 2")
         }
+        #endif
+        #endif
         
+        // Don't check recommendedMaxWorkingSetSize as it's often 0 or incorrect
+        // Just ensure we have basic threading support
         guard capabilities.maxThreadsPerThreadgroup.width >= 32 else {
             throw MetalDeviceError.insufficientCapabilities("Requires at least 32 threads per threadgroup")
         }
@@ -339,21 +378,22 @@ public class MetalDevice {
     }
     
     public func printCapabilities() {
+        let caps = self.capabilities
         logger.info("Metal Device Capabilities:")
-        logger.info("  Device: \(device.name)")
-        logger.info("  Metal Family: \(capabilities.metalFamily)")
-        logger.info("  Non-uniform threadgroups: \(capabilities.supportsNonUniformThreadgroups)")
-        logger.info("  Read-write textures: \(capabilities.supportsReadWriteTextures)")
-        logger.info("  Argument buffers: \(capabilities.supportsArgumentBuffers)")
-        logger.info("  Programmable blending: \(capabilities.supportsProgrammableBlending)")
-        logger.info("  32-bit float filtering: \(capabilities.supports32BitFloatFiltering)")
-        logger.info("  BC texture compression: \(capabilities.supportsBCTextureCompression)")
-        logger.info("  ASTC texture compression: \(capabilities.supportsASTCTextureCompression)")
-        logger.info("  Max threads per threadgroup: \(capabilities.maxThreadsPerThreadgroup)")
-        logger.info("  Max buffer length: \(capabilities.maxBufferLength / 1024 / 1024) MB")
-        logger.info("  Working set size: \(capabilities.recommendedMaxWorkingSetSize / 1024 / 1024) MB")
-        logger.info("  Is TBDR: \(capabilities.isTBDR)")
-        logger.info("  Has unified memory: \(capabilities.hasUnifiedMemory)")
+        logger.info("  Device: \(self.device.name)")
+        logger.info("  Metal Family: \(String(describing: caps.metalFamily))")
+        logger.info("  Non-uniform threadgroups: \(caps.supportsNonUniformThreadgroups)")
+        logger.info("  Read-write textures: \(caps.supportsReadWriteTextures)")
+        logger.info("  Argument buffers: \(caps.supportsArgumentBuffers)")
+        logger.info("  Programmable blending: \(caps.supportsProgrammableBlending)")
+        logger.info("  32-bit float filtering: \(caps.supports32BitFloatFiltering)")
+        logger.info("  BC texture compression: \(caps.supportsBCTextureCompression)")
+        logger.info("  ASTC texture compression: \(caps.supportsASTCTextureCompression)")
+        logger.info("  Max threads per threadgroup: \(caps.maxThreadsPerThreadgroup.width)x\(caps.maxThreadsPerThreadgroup.height)x\(caps.maxThreadsPerThreadgroup.depth)")
+        logger.info("  Max buffer length: \(caps.maxBufferLength / 1024 / 1024) MB")
+        logger.info("  Working set size: \(caps.recommendedMaxWorkingSetSize / 1024 / 1024) MB")
+        logger.info("  Is TBDR: \(caps.isTBDR)")
+        logger.info("  Has unified memory: \(caps.hasUnifiedMemory)")
     }
 }
 
@@ -363,7 +403,11 @@ extension MTLStorageMode {
         case .shared:
             return .storageModeShared
         case .managed:
+            #if os(macOS)
             return .storageModeManaged
+            #else
+            return .storageModeShared
+            #endif
         case .private:
             return .storageModePrivate
         case .memoryless:

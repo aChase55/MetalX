@@ -200,7 +200,7 @@ public struct RenderPassDescriptor {
         }
         
         // Check sample count consistency
-        let sampleCounts = validColorAttachments.map { $0.sampleCount }
+        var sampleCounts = validColorAttachments.map { $0.sampleCount }
         if let depthAttachment = depthAttachment, depthAttachment.isValid {
             sampleCounts.append(depthAttachment.sampleCount)
         }
@@ -294,7 +294,7 @@ public class RenderPassCache {
         for (index, attachment) in renderPass.colorAttachments.enumerated() {
             guard index < 8 && attachment.isValid else { continue }
             
-            let mtlAttachment = descriptor.colorAttachments[index]
+            let mtlAttachment = descriptor.colorAttachments[index]!
             mtlAttachment.texture = attachment.texture
             mtlAttachment.level = attachment.level
             mtlAttachment.slice = attachment.slice

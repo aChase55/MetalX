@@ -1,6 +1,7 @@
 import Metal
 import Foundation
 import CryptoKit
+import QuartzCore
 import os.log
 
 public enum PipelineError: Error, LocalizedError {
@@ -98,6 +99,7 @@ public struct PipelineCacheEntry {
 
 public class PipelineStateCache {
     private let device: MetalDevice
+    private let shaderLibrary: ShaderLibrary
     private let logger = Logger(subsystem: "com.metalx.engine", category: "PipelineCache")
     
     private var renderPipelineCache: [PipelineCacheKey: PipelineCacheEntry] = [:]
@@ -135,6 +137,7 @@ public class PipelineStateCache {
         enableAsyncCompilation: Bool = true
     ) {
         self.device = device
+        self.shaderLibrary = ShaderLibrary(device: device)
         self.maxCacheSize = maxCacheSize
         self.maxPendingCompilations = maxPendingCompilations
         self.enableAsyncCompilation = enableAsyncCompilation
@@ -161,6 +164,25 @@ public class PipelineStateCache {
         }
         
         return try await compileRenderPipelineState(descriptor: descriptor, key: key)
+    }
+    
+    public func getRenderPipelineState(
+        vertex: String,
+        fragment: String
+    ) async throws -> MTLRenderPipelineState {
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = try shaderLibrary.getFunction(name: vertex)
+        descriptor.fragmentFunction = try shaderLibrary.getFunction(name: fragment)
+        descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        
+        return try await getRenderPipelineState(descriptor: descriptor)
+    }
+    
+    public func getComputePipelineState(
+        function: String
+    ) async throws -> MTLComputePipelineState {
+        let mtlFunction = try shaderLibrary.getFunction(name: function)
+        return try await getComputePipelineState(function: mtlFunction)
     }
     
     public func getComputePipelineState(
@@ -232,6 +254,12 @@ public class PipelineStateCache {
     }
     
     public func evictLeastRecentlyUsed() {
+        accessQueue.async(flags: .barrier) {
+            self.performLRUEviction()
+        }
+    }
+    
+    public func performMaintenance() {
         accessQueue.async(flags: .barrier) {
             self.performLRUEviction()
         }
@@ -419,10 +447,8 @@ public class PipelineStateCache {
         }
         
         // Hash color attachments
-        let colorAttachmentCount = descriptor.colorAttachments.count
         for i in 0..<8 {
-            let attachment = descriptor.colorAttachments[i]
-            if attachment.pixelFormat != .invalid {
+            if let attachment = descriptor.colorAttachments[i], attachment.pixelFormat != .invalid {
                 hasher.update(data: Data([UInt8(attachment.pixelFormat.rawValue)]))
                 hasher.update(data: Data([UInt8(attachment.sourceRGBBlendFactor.rawValue)]))
                 hasher.update(data: Data([UInt8(attachment.destinationRGBBlendFactor.rawValue)]))
@@ -442,6 +468,14 @@ public class PipelineStateCache {
         hasher.update(data: Data([UInt8(descriptor.sampleCount)]))
         
         let hash = hasher.finalize().compactMap { String(format: "%02x", $0) }.joined()
+        
+        // Count active color attachments
+        var colorAttachmentCount = 0
+        for i in 0..<8 {
+            if let attachment = descriptor.colorAttachments[i], attachment.pixelFormat != .invalid {
+                colorAttachmentCount += 1
+            }
+        }
         
         return PipelineCacheKey(
             hash: hash,

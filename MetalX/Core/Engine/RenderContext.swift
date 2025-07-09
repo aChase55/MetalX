@@ -161,7 +161,7 @@ public class RenderContext {
         for (index, texture) in target.colorTextures.enumerated() {
             guard let texture = texture, index < 8 else { continue }
             
-            let attachment = renderPassDescriptor.colorAttachments[index]
+            let attachment = renderPassDescriptor.colorAttachments[index]!
             attachment.texture = texture
             attachment.loadAction = target.loadAction
             attachment.storeAction = target.storeAction

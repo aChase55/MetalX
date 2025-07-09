@@ -194,11 +194,8 @@ public struct EngineConfiguration {
             config.adaptiveQuality = true
         }
         
-        if device.isLowPower {
-            config.preferenceLowPower = true
-            config.thermalThrottling = true
-            config.qualityLevel = QualityLevel(rawValue: max(0, config.qualityLevel.rawValue - 1)) ?? .low
-        }
+        // Note: isLowPower is not available on iOS, only on macOS
+        // On iOS, we'll detect low power mode through other means if needed
         
         #if targetEnvironment(simulator)
         config.qualityLevel = .low

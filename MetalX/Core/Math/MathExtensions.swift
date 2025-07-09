@@ -343,7 +343,11 @@ public struct BezierCurve {
         let tt = t * t
         let uu = u * u
         
-        return 3 * uu * (p1 - p0) + 6 * u * t * (p2 - p1) + 3 * tt * (p3 - p2)
+        let term1 = 3 * uu * (p1 - p0)
+        let term2 = 6 * u * t * (p2 - p1)
+        let term3 = 3 * tt * (p3 - p2)
+        
+        return term1 + term2 + term3
     }
     
     public func subdivide(at t: Float) -> (BezierCurve, BezierCurve) {

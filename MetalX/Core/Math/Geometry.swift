@@ -1,6 +1,7 @@
 import CoreGraphics
 import simd
 import Foundation
+import UIKit
 
 public extension CGRect {
     static var zero: CGRect { CGRect.zero }

@@ -1,5 +1,18 @@
 # MetalX Implementation Guide for Claude Code
 
+## ⚠️ START HERE: Build-First Approach
+
+**IMPORTANT**: Read these guides in order:
+1. **BUILD_FIRST_GUIDE.md** - Critical rules and simple starting point
+2. **SIMPLE_CHECKLIST.md** - Day-by-day tasks to get a working app
+3. This guide - For understanding project structure
+
+## Golden Rules
+1. **The project MUST compile after every change**
+2. **Use the existing Xcode project** at `MetalX.xcodeproj`
+3. **Start simple** - No optimization until it works
+4. **Test visually** - You should see results on screen
+
 ## Project Overview
 
 MetalX is a professional GPU rendering engine for iOS that combines the power of desktop editing applications with mobile-first design. This guide provides step-by-step instructions for implementing the engine using the specifications in the `/docs` directory.

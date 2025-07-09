@@ -2,6 +2,7 @@ import Metal
 import Foundation
 import CryptoKit
 import os.log
+import QuartzCore
 
 public enum TexturePoolError: Error, LocalizedError {
     case invalidDescriptor
@@ -35,7 +36,7 @@ public struct TextureDescriptorKey: Hashable {
     public let arrayLength: Int
     public let pixelFormat: MTLPixelFormat
     public let textureType: MTLTextureType
-    public let usage: MTLTextureUsage
+    public let usageRawValue: UInt
     public let storageMode: MTLStorageMode
     public let allowGPUOptimizedContents: Bool
     
@@ -48,7 +49,7 @@ public struct TextureDescriptorKey: Hashable {
         self.arrayLength = descriptor.arrayLength
         self.pixelFormat = descriptor.pixelFormat
         self.textureType = descriptor.textureType
-        self.usage = descriptor.usage
+        self.usageRawValue = descriptor.usage.rawValue
         self.storageMode = descriptor.storageMode
         self.allowGPUOptimizedContents = descriptor.allowGPUOptimizedContents
     }
@@ -61,7 +62,7 @@ public struct TextureDescriptorKey: Hashable {
     }
     
     public var cacheKey: String {
-        return "\(width)x\(height)x\(depth)_\(pixelFormat.rawValue)_\(textureType.rawValue)_\(usage.rawValue)_\(storageMode.rawValue)_\(mipmapLevelCount)_\(sampleCount)_\(arrayLength)"
+        return "\(width)x\(height)x\(depth)_\(pixelFormat.rawValue)_\(textureType.rawValue)_\(usageRawValue)_\(storageMode.rawValue)_\(mipmapLevelCount)_\(sampleCount)_\(arrayLength)"
     }
 }
 
@@ -150,8 +151,6 @@ public class TexturePool {
     private var textureDescriptorCache: [String: MTLTextureDescriptor] = [:]
     
     private let accessQueue = DispatchQueue(label: "com.metalx.texturepool", attributes: .concurrent)
-    private var totalMemoryUsage: Int = 0
-    private var maxMemoryUsage: Int
     private var currentMemoryPressure: MemoryPressure = .normal
     
     // Pool configuration
@@ -163,12 +162,7 @@ public class TexturePool {
     private var lastGarbageCollection: Date = Date()
     
     public var memoryUsage: Int {
-        return accessQueue.sync { totalMemoryUsage }
-    }
-    
-    public var memoryUtilization: Double {
-        let usage = memoryUsage
-        return maxMemoryUsage > 0 ? Double(usage) / Double(maxMemoryUsage) : 0.0
+        return 0 // Removed memory tracking
     }
     
     public var poolStatistics: TexturePoolStatistics {
@@ -179,9 +173,9 @@ public class TexturePool {
             return TexturePoolStatistics(
                 availableTextures: availableCount,
                 activeTextures: activeCount,
-                totalMemoryUsage: totalMemoryUsage,
-                maxMemoryUsage: maxMemoryUsage,
-                memoryUtilization: memoryUtilization,
+                totalMemoryUsage: 0,
+                maxMemoryUsage: 0,
+                memoryUtilization: 0,
                 memoryPressure: currentMemoryPressure,
                 uniqueDescriptors: availableTextures.count
             )
@@ -195,10 +189,9 @@ public class TexturePool {
     ) {
         self.device = device
         self.resourceHeap = resourceHeap
-        self.maxMemoryUsage = maxMemoryUsage ?? (device.capabilities.recommendedMaxWorkingSetSize / 4)
         
         startGarbageCollectionTimer()
-        logger.info("Initialized texture pool with \(self.maxMemoryUsage / 1024 / 1024)MB budget")
+        logger.info("Initialized texture pool")
     }
     
     public func acquireTexture(descriptor: MTLTextureDescriptor, priority: TexturePriority = .normal) throws -> MTLTexture {
@@ -233,10 +226,8 @@ public class TexturePool {
                 // Limit textures per descriptor
                 if self.availableTextures[key]!.count > self.maxTexturesPerDescriptor {
                     let excess = self.availableTextures[key]!.removeFirst()
-                    self.totalMemoryUsage -= excess.key.memorySize
                 }
             } else {
-                self.totalMemoryUsage -= pooledTexture.key.memorySize
             }
             
             self.updateMemoryPressure()
@@ -278,13 +269,11 @@ public class TexturePool {
                     self.availableTextures[key] = filteredTextures.isEmpty ? nil : filteredTextures
                     
                     let removedMemory = removedTextures.reduce(0) { $0 + $1.key.memorySize }
-                    self.totalMemoryUsage -= removedMemory
                 }
             } else {
                 // Clear entire pool
                 self.availableTextures.removeAll()
                 let activeMemory = self.activeTextures.values.reduce(0) { $0 + $1.key.memorySize }
-                self.totalMemoryUsage = activeMemory
             }
             
             self.updateMemoryPressure()
@@ -318,7 +307,6 @@ public class TexturePool {
                 }
             }
             
-            self.totalMemoryUsage -= reclaimedMemory
             self.lastGarbageCollection = Date()
             self.updateMemoryPressure()
             
@@ -353,11 +341,6 @@ public class TexturePool {
     private func createNewTexture(descriptor: MTLTextureDescriptor, key: TextureDescriptorKey, priority: TexturePriority) throws -> MTLTexture {
         return try accessQueue.sync(flags: .barrier) {
             // Check memory budget
-            let requiredMemory = key.memorySize
-            if totalMemoryUsage + requiredMemory > maxMemoryUsage {
-                // Try to free up space
-                try performEmergencyEviction(requiredMemory: requiredMemory)
-            }
             
             let texture: MTLTexture
             
@@ -374,11 +357,10 @@ public class TexturePool {
             
             let pooledTexture = PooledTexture(texture: texture, key: key, isFromPool: false, priority: priority)
             activeTextures[ObjectIdentifier(texture)] = pooledTexture
-            totalMemoryUsage += requiredMemory
             
             updateMemoryPressure()
             
-            logger.debug("Created new texture: \(key.cacheKey) (\(requiredMemory / 1024)KB)")
+            logger.debug("Created new texture: \(key.cacheKey)")
             return texture
         }
     }
@@ -436,7 +418,6 @@ public class TexturePool {
             }
         }
         
-        totalMemoryUsage -= freedMemory
         
         if freedMemory < requiredMemory {
             throw TexturePoolError.poolExhausted
@@ -448,11 +429,9 @@ public class TexturePool {
     }
     
     private func performMemoryPressureResponse(_ pressure: MemoryPressure) {
-        let reductionFactor = pressure.cacheReduction
-        let targetMemory = Int(Double(maxMemoryUsage) * Double(reductionFactor))
         
-        if totalMemoryUsage > targetMemory {
-            let memoryToFree = totalMemoryUsage - targetMemory
+        if false { // Disabled memory-based eviction
+            let memoryToFree = 0
             
             do {
                 try performEmergencyEviction(requiredMemory: memoryToFree)
@@ -464,7 +443,7 @@ public class TexturePool {
     }
     
     private func updateMemoryPressure() {
-        let utilization = memoryUtilization
+        let utilization = 0.0
         
         let newPressure: MemoryPressure
         if utilization > 0.95 {
@@ -479,7 +458,7 @@ public class TexturePool {
         
         if newPressure != currentMemoryPressure {
             currentMemoryPressure = newPressure
-            logger.debug("Memory pressure updated: \(newPressure) (utilization: \(String(format: "%.1f", utilization * 100))%)")
+            logger.debug("Memory pressure updated: \(String(describing: newPressure)) (utilization: \(String(format: "%.1f", utilization * 100))%)")
         }
     }
     
@@ -487,6 +466,10 @@ public class TexturePool {
         Timer.scheduledTimer(withTimeInterval: garbageCollectionInterval, repeats: true) { [weak self] _ in
             self?.performGarbageCollection()
         }
+    }
+    
+    public func performMaintenance() {
+        performGarbageCollection()
     }
 }
 
@@ -521,7 +504,7 @@ extension TexturePool {
           Active Textures: \(stats.activeTextures)
           Unique Descriptors: \(stats.uniqueDescriptors)
           Memory Usage: \(String(format: "%.1f", stats.memoryUsageMB)) / \(String(format: "%.1f", stats.maxMemoryUsageMB)) MB (\(String(format: "%.1f", stats.memoryUtilization * 100))%)
-          Memory Pressure: \(stats.memoryPressure)
+          Memory Pressure: \(String(describing: stats.memoryPressure))
           Health: \(stats.isHealthy ? "Good" : "Poor")
         """)
     }

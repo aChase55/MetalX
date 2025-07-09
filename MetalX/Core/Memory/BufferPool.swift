@@ -101,7 +101,7 @@ public struct BufferAllocation {
     }
     
     public var contents: UnsafeMutableRawPointer? {
-        guard let basePointer = buffer.contents() else { return nil }
+        let basePointer = buffer.contents()
         return basePointer.advanced(by: offset)
     }
     
@@ -127,6 +127,7 @@ public class PooledBuffer {
     public var usedSize: Int = 0
     public var freeSize: Int { totalSize - usedSize }
     public var utilizationRatio: Double { Double(usedSize) / Double(totalSize) }
+    public var mtlBuffer: MTLBuffer { buffer }
     
     public init(device: MetalDevice, size: Int, type: BufferType) throws {
         self.totalSize = size
@@ -296,7 +297,10 @@ public class BufferPool {
     ) {
         self.device = device
         self.resourceHeap = resourceHeap
-        self.maxMemoryUsage = maxMemoryUsage ?? (device.capabilities.recommendedMaxWorkingSetSize / 8)
+        // Use a reasonable default if recommendedMaxWorkingSetSize is 0 or too small
+        let defaultBudget = 128 * 1024 * 1024 // 128MB default
+        let recommendedBudget = device.capabilities.recommendedMaxWorkingSetSize / 8
+        self.maxMemoryUsage = maxMemoryUsage ?? max(recommendedBudget, defaultBudget)
         
         // Initialize pools for each buffer type
         for type in BufferType.allCases {
@@ -308,7 +312,7 @@ public class BufferPool {
     }
     
     public func allocateBuffer(size: Int, type: BufferType) throws -> BufferAllocation {
-        return try accessQueue.sync(flags: .barrier) {
+        return try accessQueue.sync(flags: .barrier) { () throws -> BufferAllocation in
             let alignedSize = alignUp(size, to: type.alignment)
             
             // Try to allocate from existing pools
@@ -331,7 +335,7 @@ public class BufferPool {
             let allocation = try newPool.allocate(size: alignedSize)
             activeAllocations[ObjectIdentifier(allocation.buffer)] = allocation
             
-            logger.debug("Created new \(type) pool (\(newPoolSize / 1024)KB) and allocated \(alignedSize) bytes")
+            logger.debug("Created new \(String(describing: type)) pool (\(newPoolSize / 1024)KB) and allocated \(alignedSize) bytes")
             return allocation
         }
     }
@@ -347,7 +351,7 @@ public class BufferPool {
             // Find the pool that owns this buffer
             if let pools = self.pools[allocation.type] {
                 for pool in pools {
-                    if ObjectIdentifier(pool.buffer) == ObjectIdentifier(allocation.buffer) {
+                    if ObjectIdentifier(pool.mtlBuffer) == ObjectIdentifier(allocation.buffer) {
                         pool.deallocate(allocation)
                         break
                     }
@@ -382,7 +386,7 @@ public class BufferPool {
                 let allocation = try allocateBuffer(size: type.defaultSize / 4, type: type)
                 deallocateBuffer(allocation)
             } catch {
-                logger.error("Failed to preload \(type) buffer: \(error.localizedDescription)")
+                self.logger.error("Failed to preload \(String(describing: type)) buffer: \(error.localizedDescription)")
             }
         }
     }
@@ -396,14 +400,15 @@ public class BufferPool {
     }
     
     public func clearPool(type: BufferType? = nil) {
-        accessQueue.async(flags: .barrier) {
+        accessQueue.async(flags: .barrier) { [weak self] in
+            guard let self else { return }
             if let specificType = type {
                 let removedPools = self.pools[specificType] ?? []
                 let reclaimedMemory = removedPools.reduce(0) { $0 + $1.totalSize }
                 self.pools[specificType] = []
                 self.totalMemoryUsage -= reclaimedMemory
                 
-                self.logger.info("Cleared \(specificType) buffer pool, reclaimed \(reclaimedMemory / 1024 / 1024)MB")
+                self.logger.info("Cleared \(String(describing: specificType)) buffer pool, reclaimed \(reclaimedMemory / 1024 / 1024)MB")
             } else {
                 let reclaimedMemory = self.totalMemoryUsage
                 for type in BufferType.allCases {
@@ -454,7 +459,7 @@ public class BufferPool {
         for pool in poolsForType {
             if pool.utilizationRatio < shrinkThreshold && poolsForType.count > 1 {
                 removedMemory += pool.totalSize
-                logger.debug("Removed underutilized \(type) pool (\(pool.totalSize / 1024)KB, \(String(format: "%.1f", pool.utilizationRatio * 100))% used)")
+                logger.debug("Removed underutilized \(String(describing: type)) pool (\(pool.totalSize / 1024)KB, \(String(format: "%.1f", pool.utilizationRatio * 100))% used)")
             } else {
                 keptPools.append(pool)
             }
@@ -464,7 +469,7 @@ public class BufferPool {
         totalMemoryUsage -= removedMemory
         
         if removedMemory > 0 {
-            logger.info("Pool maintenance for \(type): removed \(removedMemory / 1024 / 1024)MB")
+            logger.info("Pool maintenance for \(String(describing: type)): removed \(removedMemory / 1024 / 1024)MB")
         }
     }
     
@@ -551,7 +556,7 @@ extension BufferPool {
         
         for (type, typeStats) in stats.typeStatistics {
             logger.info("""
-            \(type) Buffers:
+            \(String(describing: type)) Buffers:
               Count: \(typeStats.bufferCount)
               Capacity: \(typeStats.totalCapacity / 1024)KB (\(typeStats.usedCapacity / 1024)KB used)
               Utilization: \(String(format: "%.1f", typeStats.utilizationRatio * 100))%

@@ -313,7 +313,7 @@ public class CommandBuilder {
         
         if batch.canBatch && pendingDrawCalls.count > 1 {
             executeBatchedDrawCalls(batch)
-            logger.debug("Executed batched draw calls: \(pendingDrawCalls.count) calls, \(batch.totalVertices) vertices")
+            logger.debug("Executed batched draw calls: \(self.pendingDrawCalls.count) calls, \(batch.totalVertices) vertices")
         } else {
             for drawCall in pendingDrawCalls {
                 executeDrawCall(drawCall)
@@ -418,12 +418,12 @@ public class CommandBuilder {
     // Resource synchronization
     public func addResourceFence(_ resource: MTLResource) {
         // Implementation would add appropriate fences for resource synchronization
-        logger.debug("Added resource fence for: \(resource)")
+        logger.debug("Added resource fence for resource")
     }
     
     public func waitForFence(_ fence: MTLFence, before stage: MTLRenderStages) {
         // Implementation would handle fence synchronization
-        logger.debug("Waiting for fence before stage: \(stage)")
+        logger.debug("Waiting for fence before stage: \(stage.rawValue)")
     }
 }
 
