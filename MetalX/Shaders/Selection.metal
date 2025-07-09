@@ -35,12 +35,12 @@ fragment float4 selectionFragment(VertexOut in [[stage_in]],
     float d = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
     
     // Thinner outline with sharper edges
-    float thickness = 0.015; // Thinner
-    float outline = smoothstep(thickness - 0.002, thickness, d); // Sharp transition
+    float thickness = 0.008; // Much thinner border
+    float outline = smoothstep(thickness - 0.001, thickness, d); // Very sharp transition
     outline = 1.0 - outline;
     
-    // Animated selection color
-    float pulse = sin(uniforms.time * 3.0) * 0.3 + 0.7;
+    // Subtle animated selection color - less variation
+    float pulse = sin(uniforms.time * 3.0) * 0.1 + 0.9; // 0.8 to 1.0 range (more subtle)
     float3 color = float3(0.0, 0.5, 1.0) * pulse;
     
     // Full opacity for clean edges
