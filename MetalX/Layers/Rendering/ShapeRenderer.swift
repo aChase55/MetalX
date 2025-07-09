@@ -20,6 +20,7 @@ class ShapeRenderer {
         var strokeWidth: Float
         var shapeSize: SIMD2<Float>
         var time: Float
+        var shapeType: Int32  // 0: rectangle, 1: ellipse, 2: polygon
         
         init() {
             self.transform = matrix_identity_float4x4
@@ -28,6 +29,7 @@ class ShapeRenderer {
             self.strokeWidth = 1.0
             self.shapeSize = SIMD2<Float>(100, 100)
             self.time = 0.0
+            self.shapeType = 0
         }
     }
     
@@ -229,23 +231,35 @@ class ShapeRenderer {
             zfar: 1.0
         ))
         
-        // Render stroke first (behind fill)
-        if let strokeColor = shape.strokeColor, shape.strokeWidth > 0 {
-            renderStroke(
-                color: strokeColor,
-                width: shape.strokeWidth,
+        // Handle different rendering cases
+        if let fillType = shape.fillType {
+            // Case 1: Has fill - render stroke first, then fill on top
+            if let strokeColor = shape.strokeColor, shape.strokeWidth > 0 {
+                renderStroke(
+                    color: strokeColor,
+                    width: shape.strokeWidth,
+                    shape: shape,
+                    vertices: vertices,
+                    indices: indices,
+                    transform: transform,
+                    encoder: renderEncoder
+                )
+            }
+            
+            // Render fill on top
+            renderFill(
+                fillType: fillType,
                 shape: shape,
                 vertices: vertices,
                 indices: indices,
                 transform: transform,
                 encoder: renderEncoder
             )
-        }
-        
-        // Render fill on top
-        if let fillType = shape.fillType {
-            renderFill(
-                fillType: fillType,
+        } else if let strokeColor = shape.strokeColor, shape.strokeWidth > 0 {
+            // Case 2: No fill, only stroke - render stroke outline
+            renderStrokeOnly(
+                color: strokeColor,
+                width: shape.strokeWidth,
                 shape: shape,
                 vertices: vertices,
                 indices: indices,
@@ -422,6 +436,49 @@ class ShapeRenderer {
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 0)
         
         // Draw the stroke shape
+        encoder.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: shape.indexCount,
+            indexType: .uint16,
+            indexBuffer: indices,
+            indexBufferOffset: 0
+        )
+    }
+    
+    private func renderStrokeOnly(
+        color: CGColor,
+        width: Float,
+        shape: VectorShapeLayer,
+        vertices: MTLBuffer,
+        indices: MTLBuffer,
+        transform: matrix_float4x4,
+        encoder: MTLRenderCommandEncoder
+    ) {
+        guard let pipelineState = strokePipelineState else { return }
+        
+        encoder.setRenderPipelineState(pipelineState)
+        
+        // Setup uniforms for stroke-only rendering
+        var uniforms = ShapeUniforms()
+        uniforms.transform = transform
+        uniforms.strokeColor = colorToSIMD(color)
+        uniforms.strokeWidth = width
+        uniforms.shapeSize = SIMD2<Float>(Float(shape.bounds.width), Float(shape.bounds.height))
+        
+        // Determine shape type based on layer name
+        if shape.name.contains("Rectangle") || shape.name.contains("Square") {
+            uniforms.shapeType = 0  // Rectangle
+        } else if shape.name.contains("Ellipse") || shape.name.contains("Circle") {
+            uniforms.shapeType = 1  // Ellipse
+        } else {
+            uniforms.shapeType = 2  // Polygon
+        }
+        
+        encoder.setVertexBuffer(vertices, offset: 0, index: 0)
+        encoder.setVertexBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 0)
+        
+        // Draw the stroke outline
         encoder.drawIndexedPrimitives(
             type: .triangle,
             indexCount: shape.indexCount,

@@ -21,6 +21,7 @@ struct ShapeUniforms {
     float strokeWidth;
     float2 shapeSize;
     float time;
+    int shapeType;  // 0: rectangle, 1: ellipse, 2: polygon
 };
 
 struct GradientUniforms {
@@ -230,8 +231,36 @@ fragment float4 shapeAngularGradient(ShapeVertexOut in [[stage_in]],
     return color;
 }
 
-// Stroke rendering (for line shapes)
+// Stroke rendering - creates proper outline using distance field
 fragment float4 shapeStroke(ShapeVertexOut in [[stage_in]],
                             constant ShapeUniforms& uniforms [[buffer(0)]]) {
-    return uniforms.strokeColor;
+    // Calculate distance from edge using normalized coordinates
+    float2 normalizedPos = in.localPosition / (uniforms.shapeSize * 0.5);
+    
+    // Calculate distance based on shape type
+    float distance;
+    if (uniforms.shapeType == 0) {
+        // Rectangle: use max component for rectangular shapes
+        distance = max(abs(normalizedPos.x), abs(normalizedPos.y));
+    } else if (uniforms.shapeType == 1) {
+        // Ellipse: use elliptical distance
+        distance = length(normalizedPos);
+    } else {
+        // Polygon: use max component as fallback
+        distance = max(abs(normalizedPos.x), abs(normalizedPos.y));
+    }
+    
+    // Create stroke outline
+    float outerRadius = 1.0;
+    float strokeThickness = uniforms.strokeWidth / min(uniforms.shapeSize.x, uniforms.shapeSize.y);
+    float innerRadius = 1.0 - strokeThickness;
+    
+    // Anti-aliased stroke
+    float strokeMask = smoothstep(innerRadius - 0.01, innerRadius + 0.01, distance) - 
+                       smoothstep(outerRadius - 0.01, outerRadius + 0.01, distance);
+    
+    float4 strokeColor = uniforms.strokeColor;
+    strokeColor.a *= strokeMask;
+    
+    return strokeColor;
 }
