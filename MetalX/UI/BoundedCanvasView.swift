@@ -120,15 +120,11 @@ struct BoundedCanvasView: UIViewRepresentable {
         
         func setupQuadRenderer() {
             guard let device = metalView?.device else { return }
-            do {
-                quadRenderer = try QuadRenderer(device: device)
-                commandQueue = device.makeCommandQueue()
-                
-                // Set initial scroll view state
-                selectionChanged()
-            } catch {
-                print("Failed to setup quad renderer: \(error)")
-            }
+            quadRenderer = QuadRenderer(device: device)
+            commandQueue = device.makeCommandQueue()
+            
+            // Set initial scroll view state
+            selectionChanged()
         }
         
         func updateCanvasSize() {
@@ -157,7 +153,6 @@ struct BoundedCanvasView: UIViewRepresentable {
         
         func centerCanvas() {
             guard let scrollView = scrollView,
-                  let canvasContainer = canvasContainer,
                   scrollView.bounds.size.width > 0,
                   scrollView.bounds.size.height > 0 else { return }
             
@@ -456,28 +451,50 @@ struct BoundedCanvasView: UIViewRepresentable {
 
 extension BoundedCanvasView.Coordinator: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        // Allow pinch and rotation together
+        // Allow pinch and rotation together on layers
         if (gestureRecognizer is UIPinchGestureRecognizer && otherGestureRecognizer is UIRotationGestureRecognizer) ||
            (gestureRecognizer is UIRotationGestureRecognizer && otherGestureRecognizer is UIPinchGestureRecognizer) {
             return true
         }
         
-        // Allow pan with scroll view when no selection
-        if gestureRecognizer is UIPanGestureRecognizer && canvas.selectedLayer == nil {
-            return true
+        // When no layer is selected, allow scroll view gestures to work simultaneously
+        if canvas.selectedLayer == nil {
+            // Let our gestures work with scroll view gestures
+            if otherGestureRecognizer.view is UIScrollView {
+                return true
+            }
+            // Let scroll view gestures work with our gestures
+            if gestureRecognizer.view is UIScrollView {
+                return true
+            }
         }
         
         return false
     }
     
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        // If we have a selected layer, only our gestures should work, not scroll view's
-        if canvas.selectedLayer != nil {
-            // Disable scroll view pan/pinch when layer is selected
-            if let scrollGesture = gestureRecognizer.view as? UIScrollView {
-                return false
+        // For our gestures on the metal view
+        if gestureRecognizer.view == metalView {
+            // Pan gesture should only begin if we have a selected layer or will select one
+            if gestureRecognizer is UIPanGestureRecognizer {
+                if canvas.selectedLayer == nil {
+                    // Check if we'll hit a layer with tap location
+                    let location = gestureRecognizer.location(in: metalView)
+                    for layer in canvas.layers.reversed() {
+                        if layer.hitTest(point: location) {
+                            return true // Will select this layer
+                        }
+                    }
+                    return false // No layer to select, let scroll view handle it
+                }
+            }
+            
+            // Pinch and rotation only work with selected layer
+            if gestureRecognizer is UIPinchGestureRecognizer || gestureRecognizer is UIRotationGestureRecognizer {
+                return canvas.selectedLayer != nil
             }
         }
+        
         return true
     }
 }
