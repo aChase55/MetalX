@@ -29,6 +29,12 @@ fragment float4 simpleFragment(VertexOut in [[stage_in]],
                                sampler textureSampler [[sampler(0)]],
                                constant float4& fragmentUniforms [[buffer(1)]]) {
     float4 color = texture.sample(textureSampler, in.texCoord);
-    color.a *= fragmentUniforms.x; // Apply opacity
+    
+    // Apply opacity
+    color.a *= fragmentUniforms.x;
+    
+    // Premultiply alpha for proper blending
+    color.rgb *= color.a;
+    
     return color;
 }

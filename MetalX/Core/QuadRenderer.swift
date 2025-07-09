@@ -5,7 +5,7 @@ import simd
 // SIMPLE VERSION - Just render a textured quad
 class QuadRenderer {
     let device: MTLDevice
-    var pipelineState: MTLRenderPipelineState?
+    var pipelineStates: [BlendMode: MTLRenderPipelineState] = [:]
     var selectionPipelineState: MTLRenderPipelineState?
     var vertexBuffer: MTLBuffer?
     var indexBuffer: MTLBuffer?
@@ -22,19 +22,7 @@ class QuadRenderer {
         let vertexFunction = library.makeFunction(name: "simpleVertex")!
         let fragmentFunction = library.makeFunction(name: "simpleFragment")!
         
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction = vertexFunction
-        descriptor.fragmentFunction = fragmentFunction
-        descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
-        
-        // Enable alpha blending for transparency
-        descriptor.colorAttachments[0].isBlendingEnabled = true
-        descriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-        descriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-        descriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
-        descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-        
-        // Setup vertex descriptor
+        // Setup vertex descriptor once
         let vertexDescriptor = MTLVertexDescriptor()
         vertexDescriptor.attributes[0].format = .float2
         vertexDescriptor.attributes[0].offset = 0
@@ -48,9 +36,109 @@ class QuadRenderer {
         vertexDescriptor.layouts[0].stepRate = 1
         vertexDescriptor.layouts[0].stepFunction = .perVertex
         
-        descriptor.vertexDescriptor = vertexDescriptor
-        
-        pipelineState = try! device.makeRenderPipelineState(descriptor: descriptor)
+        // Create pipeline state for each blend mode
+        for blendMode in BlendMode.allCases {
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = vertexFunction
+            
+            descriptor.fragmentFunction = fragmentFunction
+            
+            descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+            descriptor.vertexDescriptor = vertexDescriptor
+            
+            // Configure blending based on mode
+            let colorAttachment = descriptor.colorAttachments[0]!
+            colorAttachment.isBlendingEnabled = true
+            
+            switch blendMode {
+            case .normal:
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .multiply:
+                // With premultiplied alpha:
+                // - Opaque pixels: src.rgb * dst.rgb + dst.rgb * 0 = multiply effect
+                // - Transparent pixels: 0 * dst.rgb + dst.rgb * 1 = unchanged destination
+                // This preserves the destination where source is transparent
+                colorAttachment.sourceRGBBlendFactor = .destinationColor
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .destinationAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .screen:
+                // Screen should also respect alpha: result = src + dst * (1 - src)
+                // But we need to account for alpha to avoid affecting transparent areas
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .overlay:
+                // Overlay requires custom shader logic, use normal for now
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .darken:
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .one
+                colorAttachment.rgbBlendOperation = .min
+                
+            case .lighten:
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .one
+                colorAttachment.rgbBlendOperation = .max
+                
+            case .colorDodge, .colorBurn:
+                // These require custom shaders, use screen/multiply as approximation
+                if blendMode == .colorDodge {
+                    colorAttachment.sourceRGBBlendFactor = .one
+                    colorAttachment.destinationRGBBlendFactor = .oneMinusSourceColor
+                } else {
+                    colorAttachment.sourceRGBBlendFactor = .destinationColor
+                    colorAttachment.destinationRGBBlendFactor = .zero
+                }
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+                
+            case .difference:
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .one
+                colorAttachment.rgbBlendOperation = .reverseSubtract
+                
+            case .exclusion:
+                // Exclusion needs custom shader, use difference for now
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .one
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .one
+                colorAttachment.rgbBlendOperation = .reverseSubtract
+                
+            case .softLight, .hardLight:
+                // These need custom shaders, use overlay approximation
+                colorAttachment.sourceRGBBlendFactor = .sourceAlpha
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .sourceAlpha
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.rgbBlendOperation = .add
+            }
+            
+            pipelineStates[blendMode] = try! device.makeRenderPipelineState(descriptor: descriptor)
+        }
         
         // Setup selection pipeline
         if let selectionVertex = library.makeFunction(name: "selectionVertex"),
@@ -95,7 +183,8 @@ class QuadRenderer {
     }
     
     func render(encoder: MTLRenderCommandEncoder, texture: MTLTexture, transform: simd_float4x4 = matrix_identity_float4x4, opacity: Float = 1.0, blendMode: BlendMode = .normal) {
-        encoder.setRenderPipelineState(pipelineState!)
+        guard let pipelineState = pipelineStates[blendMode] else { return }
+        encoder.setRenderPipelineState(pipelineState)
         encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
         // Pass transform matrix as uniform
