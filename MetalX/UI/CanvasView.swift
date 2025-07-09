@@ -1,6 +1,7 @@
 import SwiftUI
 import MetalKit
 import Combine
+import simd
 
 // Canvas view that uses the Canvas model
 struct CanvasView: UIViewRepresentable {
@@ -50,6 +51,16 @@ struct CanvasView: UIViewRepresentable {
         var pinchStartScale: CGFloat = 1.0
         var rotationStartAngle: CGFloat = 0
         
+        // Animation
+        var displayLink: CADisplayLink?
+        var startTime: CFTimeInterval = 0
+        
+        // Alignment
+        let alignmentEngine = AlignmentEngine()
+        let guideRenderer = GuideRenderer()
+        var guideLayer: CALayer?
+        var activeGuides: [AlignmentGuide] = []
+        
         // Combine subscriptions
         private var cancellables = Set<AnyCancellable>()
         
@@ -79,8 +90,28 @@ struct CanvasView: UIViewRepresentable {
             canvas.$selectedLayer
                 .sink { [weak self] _ in
                     self?.setNeedsDisplay()
+                    self?.updateSelectionAnimation()
                 }
                 .store(in: &cancellables)
+        }
+        
+        func updateSelectionAnimation() {
+            if canvas.selectedLayer != nil {
+                // Start animation if not running
+                if displayLink == nil {
+                    startTime = CACurrentMediaTime()
+                    displayLink = CADisplayLink(target: self, selector: #selector(animationTick))
+                    displayLink?.add(to: .main, forMode: .common)
+                }
+            } else {
+                // Stop animation
+                displayLink?.invalidate()
+                displayLink = nil
+            }
+        }
+        
+        @objc func animationTick() {
+            setNeedsDisplay()
         }
         
         func setNeedsDisplay() {
@@ -118,7 +149,12 @@ struct CanvasView: UIViewRepresentable {
             // Hit test layers from top to bottom
             for layer in canvas.layers.reversed() {
                 let hit = layer.hitTest(point: location)
-                print("Testing layer \(layer.name): hit = \(hit), bounds = \(layer.bounds)")
+                let transformedBounds = layer.getBounds(includeEffects: false)
+                print("Testing layer \(layer.name):")
+                print("  - Raw bounds: \(layer.bounds)")
+                print("  - Transformed bounds: \(transformedBounds)")
+                print("  - Tap location: \(location)")
+                print("  - Hit: \(hit)")
                 if hit {
                     print("Selected layer: \(layer.name)")
                     canvas.selectLayer(layer)
@@ -132,6 +168,17 @@ struct CanvasView: UIViewRepresentable {
         }
         
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+            // If no layer is selected, try to select one under the touch point
+            if canvas.selectedLayer == nil && gesture.state == .began {
+                let location = gesture.location(in: gesture.view)
+                for layer in canvas.layers.reversed() {
+                    if layer.hitTest(point: location) {
+                        canvas.selectLayer(layer)
+                        break
+                    }
+                }
+            }
+            
             guard let selectedLayer = canvas.selectedLayer else { 
                 print("Pan: No selected layer")
                 return 
@@ -143,15 +190,43 @@ struct CanvasView: UIViewRepresentable {
                 print("Pan began - start position: \(panStartLocation)")
             case .changed:
                 let translation = gesture.translation(in: gesture.view)
-                selectedLayer.transform.position = CGPoint(
+                var newPosition = CGPoint(
                     x: panStartLocation.x + translation.x,
                     y: panStartLocation.y + translation.y
                 )
+                
+                // Find alignment guides
+                activeGuides = alignmentEngine.findAlignmentGuides(
+                    for: selectedLayer,
+                    in: canvas.layers,
+                    canvasSize: metalView?.bounds.size ?? CGSize(width: 1024, height: 1024)
+                )
+                
+                // Snap to guides
+                newPosition = alignmentEngine.snapPosition(newPosition, for: selectedLayer, guides: activeGuides)
+                
+                selectedLayer.transform.position = newPosition
                 print("Pan changed - new position: \(selectedLayer.transform.position)")
+                
+                // Update guide display
+                updateGuideDisplay()
+                
                 canvas.setNeedsDisplay()
                 setNeedsDisplay()
             default:
+                // Hide guides when done
+                activeGuides = []
+                updateGuideDisplay()
                 break
+            }
+        }
+        
+        func updateGuideDisplay() {
+            guideLayer?.removeFromSuperlayer()
+            
+            if !activeGuides.isEmpty, let metalView = metalView {
+                guideLayer = guideRenderer.renderGuides(activeGuides, in: metalView)
+                metalView.layer.addSublayer(guideLayer!)
             }
         }
         
@@ -177,6 +252,7 @@ struct CanvasView: UIViewRepresentable {
             case .began:
                 rotationStartAngle = selectedLayer.transform.rotation
             case .changed:
+                // Use positive rotation for correct direction
                 selectedLayer.transform.rotation = rotationStartAngle + CGFloat(gesture.rotation)
                 canvas.setNeedsDisplay()
                 setNeedsDisplay()
@@ -218,23 +294,80 @@ struct CanvasView: UIViewRepresentable {
         }
         
         func renderLayer(_ layer: Layer, encoder: MTLRenderCommandEncoder) {
-            // For now, just render image layers
-            if let imageLayer = layer as? ImageLayer,
-               let texture = imageLayer.texture {
+            var texture: MTLTexture?
+            
+            // Get texture from different layer types
+            if let imageLayer = layer as? ImageLayer {
+                texture = imageLayer.texture
+            } else if let textLayer = layer as? TextLayer {
+                texture = textLayer.texture
+            }
+            
+            if let texture = texture {
                 print("Rendering layer: \(layer.name) with texture: \(texture)")
                 
-                // Apply transform
-                // TODO: Pass transform matrix to shader
-                quadRenderer?.render(encoder: encoder, texture: texture)
+                // Calculate transform matrix
+                let transform = calculateTransformMatrix(for: layer, canvasSize: metalView?.bounds.size ?? CGSize(width: 1024, height: 1024))
                 
-                // Draw selection border if this is the selected layer
+                // Render the layer first
+                quadRenderer?.render(encoder: encoder, texture: texture, transform: transform)
+                
+                // Draw selection border ON TOP of the layer if this is the selected layer
                 if layer === canvas.selectedLayer {
-                    // TODO: Draw selection border
-                    print("TODO: Draw selection border for \(layer.name)")
+                    let time = Float(CACurrentMediaTime() - startTime)
+                    
+                    // Use exact same transform as the layer (no scaling)
+                    quadRenderer?.renderSelection(
+                        encoder: encoder,
+                        transform: transform,
+                        viewportSize: metalView?.bounds.size ?? CGSize(width: 1024, height: 1024),
+                        time: time
+                    )
                 }
             } else {
-                print("Skipping layer: \(layer.name) - no texture or not image layer")
+                print("Skipping layer: \(layer.name) - no texture available")
             }
+        }
+        
+        func calculateTransformMatrix(for layer: Layer, canvasSize: CGSize) -> simd_float4x4 {
+            // Convert from screen coordinates to NDC (-1 to 1)
+            let transform = layer.transform
+            
+            // Get layer size
+            let layerSize = layer.bounds.size
+            
+            // Scale to convert from pixel coordinates to NDC
+            let pixelToNDC = simd_float2(2.0 / Float(canvasSize.width), -2.0 / Float(canvasSize.height))
+            
+            // Calculate position in NDC space
+            let centerX = Float(transform.position.x)
+            let centerY = Float(transform.position.y)
+            
+            // Layer dimensions in pixels
+            let halfWidth = Float(layerSize.width * transform.scale) * 0.5
+            let halfHeight = Float(layerSize.height * transform.scale) * 0.5
+            
+            // Create transform matrix: Translation * Rotation * Scale
+            var matrix = matrix_identity_float4x4
+            
+            // Apply rotation
+            let angle = Float(transform.rotation)
+            let cos_r = cos(angle)
+            let sin_r = sin(angle)
+            
+            // Build the complete transform
+            // Note: We build this carefully to avoid skewing
+            matrix.columns.0.x = cos_r * halfWidth * pixelToNDC.x
+            matrix.columns.0.y = sin_r * halfWidth * pixelToNDC.y
+            
+            matrix.columns.1.x = -sin_r * halfHeight * pixelToNDC.x
+            matrix.columns.1.y = cos_r * halfHeight * pixelToNDC.y
+            
+            // Translation (convert from screen center to NDC)
+            matrix.columns.3.x = (centerX - Float(canvasSize.width) * 0.5) * pixelToNDC.x
+            matrix.columns.3.y = (centerY - Float(canvasSize.height) * 0.5) * pixelToNDC.y
+            
+            return matrix
         }
     }
 }

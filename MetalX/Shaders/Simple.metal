@@ -11,9 +11,15 @@ struct VertexOut {
     float2 texCoord;
 };
 
-vertex VertexOut simpleVertex(VertexIn in [[stage_in]]) {
+struct Uniforms {
+    float4x4 transform;
+};
+
+vertex VertexOut simpleVertex(VertexIn in [[stage_in]],
+                              constant Uniforms& uniforms [[buffer(1)]]) {
     VertexOut out;
-    out.position = float4(in.position, 0.0, 1.0);
+    float4 pos = float4(in.position, 0.0, 1.0);
+    out.position = uniforms.transform * pos;
     out.texCoord = in.texCoord;
     return out;
 }

@@ -76,15 +76,23 @@ class BaseLayer: Layer {
     
     func getBounds(includeEffects: Bool) -> CGRect {
         // Apply transform to bounds
-        var transformedBounds = bounds
-        transformedBounds.origin.x += transform.position.x
-        transformedBounds.origin.y += transform.position.y
-        transformedBounds.size.width *= transform.scale
-        transformedBounds.size.height *= transform.scale
+        let scaledWidth = bounds.width * transform.scale
+        let scaledHeight = bounds.height * transform.scale
+        
+        // Position is the center of the layer
+        let transformedBounds = CGRect(
+            x: transform.position.x - scaledWidth / 2,
+            y: transform.position.y - scaledHeight / 2,
+            width: scaledWidth,
+            height: scaledHeight
+        )
+        
         return transformedBounds
     }
     
     func hitTest(point: CGPoint) -> Bool {
-        return getBounds(includeEffects: false).contains(point)
+        // Get bounds with transform applied
+        let transformedBounds = getBounds(includeEffects: false)
+        return transformedBounds.contains(point)
     }
 }

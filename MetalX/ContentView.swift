@@ -9,50 +9,44 @@ import SwiftUI
 import MetalKit
 
 struct ContentView: View {
-    @StateObject private var demoViewModel = DemoViewModel()
     @StateObject private var canvas = Canvas()
+    @State private var showingImagePicker = false
+    @State private var showingTextInput = false
+    @State private var newTextContent = ""
+    @State private var selectedImage: UIImage?
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Header
-                VStack(spacing: 8) {
-                    Text("MetalX Canvas")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                HStack {
+                    Spacer()
                     
-                    HStack {
-                        if demoViewModel.isEngineReady {
-                            Label("Engine Ready", systemImage: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .font(.caption)
-                        }
-                        
-                        Spacer()
-                        
-                        Text("Layers: \(canvas.layers.count)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal)
+                    Text("Layers: \(canvas.layers.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding(.vertical, 8)
+                .padding()
                 
                 // Canvas
-                if demoViewModel.isEngineReady {
-                    CanvasView(canvas: canvas)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black.opacity(0.05))
-                } else {
-                    Label("Initializing Engine...", systemImage: "clock")
-                        .foregroundColor(.orange)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                CanvasView(canvas: canvas)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.05))
                 
                 // Canvas controls
                 HStack(spacing: 16) {
-                    Button("Add Layer") {
-                        addTestLayer()
+                    Menu {
+                        Button("Test Layer") {
+                            addTestLayer()
+                        }
+                        Button("From Photos") {
+                            showingImagePicker = true
+                        }
+                        Button("Text") {
+                            showingTextInput = true
+                        }
+                    } label: {
+                        Label("Add Layer", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                     
@@ -71,19 +65,33 @@ struct ContentView: View {
                     }
                 }
                 .padding()
-                
-                if let error = demoViewModel.lastError {
-                    Text("Error: \(error.localizedDescription)")
-                        .foregroundColor(.red)
-                        .font(.caption)
-                }
-                
             }
             .padding()
             .navigationTitle("MetalX Canvas")
         }
-        .task {
-            await demoViewModel.initializeEngine()
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: $selectedImage)
+        }
+        .alert("Add Text", isPresented: $showingTextInput) {
+            TextField("Text", text: $newTextContent)
+            Button("Add") {
+                print("Adding text layer with content: '\(newTextContent)'")
+                if !newTextContent.isEmpty {
+                    addTextLayer(newTextContent)
+                }
+                newTextContent = ""
+            }
+            Button("Cancel", role: .cancel) {
+                newTextContent = ""
+            }
+        } message: {
+            Text("Enter text for the new layer")
+        }
+        .onChange(of: selectedImage) { newImage in
+            if let image = newImage {
+                addImageLayer(image)
+                selectedImage = nil
+            }
         }
     }
     
@@ -128,54 +136,51 @@ struct ContentView: View {
         canvas.addLayer(imageLayer)
         canvas.selectLayer(imageLayer)
     }
-}
-
-@MainActor
-class DemoViewModel: ObservableObject {
-    @Published var isEngineReady = false
-    @Published var lastError: Error?
     
-    var renderEngine: RenderEngine?
-    
-    func initializeEngine() async {
-        // First test if Metal is available
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            print("Metal is not supported on this device")
-            lastError = MetalDeviceError.noMetalSupport
-            isEngineReady = false
-            return
+    private func addImageLayer(_ image: UIImage) {
+        let imageLayer = ImageLayer(image: image)
+        imageLayer.name = "Photo Layer"
+        
+        // Scale image to fit canvas if too large
+        let canvasSize = CGSize(width: 400, height: 400) // Target size
+        let imageSize = image.size
+        
+        if imageSize.width > canvasSize.width || imageSize.height > canvasSize.height {
+            let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+            imageLayer.transform.scale = scale
         }
         
-        print("Metal device found: \(device.name)")
+        // Center in canvas
+        imageLayer.transform.position = CGPoint(x: 360, y: 640) // Approximate center
         
-        do {
-            let config = EngineConfiguration()
-            renderEngine = try RenderEngine(configuration: config)
-            isEngineReady = true
-        } catch {
-            print("Engine initialization failed: \(error)")
-            lastError = error
-            isEngineReady = false
-        }
+        canvas.addLayer(imageLayer)
+        canvas.selectLayer(imageLayer)
     }
     
-    func performTestRender() async {
-        guard let engine = renderEngine else { return }
-        
-        do {
-            // Create a simple test texture
-            let testTexture = try engine.createRenderTexture(width: 512, height: 512)
-            let outputTexture = try engine.createRenderTexture(width: 512, height: 512)
-            
-            // Perform a simple copy operation
-            try await engine.render(texture: testTexture, to: outputTexture)
-            
-            print("Test render completed successfully!")
-            
-        } catch {
-            lastError = error
-            print("Test render failed: \(error)")
+    private func addTextLayer(_ text: String) {
+        guard !text.isEmpty else { 
+            print("addTextLayer: Empty text, returning")
+            return 
         }
+        
+        print("Creating text layer with text: '\(text)'")
+        let textLayer = TextLayer(text: text)
+        textLayer.name = "Text: \(text)"
+        textLayer.textColor = .white
+        textLayer.font = UIFont.systemFont(ofSize: 72, weight: .bold)
+        textLayer.forceUpdateTexture() // Update texture after setting properties
+        // Center in canvas - use screen center for now
+        let screenBounds = UIScreen.main.bounds
+        textLayer.transform.position = CGPoint(
+            x: screenBounds.width / 2,
+            y: screenBounds.height / 3  // Upper third for better visibility
+        )
+        
+        print("Text layer texture: \(textLayer.texture)")
+        print("Text layer bounds: \(textLayer.bounds)")
+        
+        canvas.addLayer(textLayer)
+        canvas.selectLayer(textLayer)
     }
 }
 
