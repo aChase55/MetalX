@@ -4,7 +4,7 @@ import Foundation
 import UIKit
 
 public extension CGRect {
-    static var zero: CGRect { CGRect.zero }
+    // Use CGRect.zero from CoreGraphics instead
     static var unit: CGRect { CGRect(x: 0, y: 0, width: 1, height: 1) }
     
     var center: CGPoint {
@@ -49,9 +49,7 @@ public extension CGRect {
         )
     }
     
-    func insetBy(dx: CGFloat, dy: CGFloat) -> CGRect {
-        insetBy(dx: dx, dy: dy)
-    }
+    // Use built-in insetBy(dx:dy:) from CoreGraphics
     
     func insetBy(_ insets: UIEdgeInsets) -> CGRect {
         CGRect(
@@ -62,9 +60,7 @@ public extension CGRect {
         )
     }
     
-    func offsetBy(dx: CGFloat, dy: CGFloat) -> CGRect {
-        offsetBy(dx: dx, dy: dy)
-    }
+    // Use built-in offsetBy(dx:dy:) from CoreGraphics
     
     func offsetBy(_ offset: CGPoint) -> CGRect {
         offsetBy(dx: offset.x, dy: offset.y)
@@ -157,7 +153,7 @@ public extension CGRect {
 }
 
 public extension CGSize {
-    static var zero: CGSize { CGSize.zero }
+    // Use CGSize.zero from CoreGraphics instead
     static var one: CGSize { CGSize(width: 1, height: 1) }
     
     var aspectRatio: CGFloat {
@@ -203,7 +199,7 @@ public extension CGSize {
 }
 
 public extension CGPoint {
-    static var zero: CGPoint { CGPoint.zero }
+    // Use CGPoint.zero from CoreGraphics instead
     static var one: CGPoint { CGPoint(x: 1, y: 1) }
     
     var length: CGFloat {

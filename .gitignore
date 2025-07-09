@@ -1,1 +1,9 @@
 /.build
+/.build/*
+/build/*
+/build/Logs/Test
+/build/Logs/Build/LogStoreManifest.plist
+/build/Logs/Launch/LogStoreManifest.plist
+/build/Logs/Localization/LogStoreManifest.plist
+/build/Logs/Package/LogStoreManifest.plist
+/build/Logs/Test/LogStoreManifest.plist

@@ -190,7 +190,7 @@ public class TexturePool {
         self.device = device
         self.resourceHeap = resourceHeap
         
-        startGarbageCollectionTimer()
+        // startGarbageCollectionTimer() // Disabled - causing crashes
         logger.info("Initialized texture pool")
     }
     

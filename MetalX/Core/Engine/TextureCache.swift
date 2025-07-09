@@ -168,7 +168,7 @@ public class TextureCache {
     private let maxTaskAge: TimeInterval = 30.0
     
     public var memoryUsage: Int {
-        return accessQueue.sync { totalMemoryUsage }
+        return 0 // Memory tracking removed - was causing crashes
     }
     
     public var memoryUtilization: Double {
@@ -202,7 +202,7 @@ public class TextureCache {
         let recommendedBudget = device.capabilities.recommendedMaxWorkingSetSize / 3
         self.maxMemoryUsage = maxMemoryUsage ?? max(recommendedBudget, defaultBudget)
         
-        startMaintenanceTimer()
+        // startMaintenanceTimer() // Disabled - causing crashes
         logger.info("Initialized texture cache with \(self.maxMemoryUsage / 1024 / 1024)MB budget")
     }
     

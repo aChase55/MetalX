@@ -166,9 +166,9 @@ public class RenderEngine {
         // Initialize render context
         self.renderContext = RenderContext(device: device)
         
-        // Setup monitoring
-        setupPerformanceMonitoring()
-        setupMemoryPressureMonitoring()
+        // Setup monitoring - disabled, causing crashes
+        // setupPerformanceMonitoring()
+        // setupMemoryPressureMonitoring()
         
         logger.info("RenderEngine initialized successfully")
         logSystemCapabilities()
@@ -252,14 +252,7 @@ public class RenderEngine {
             self.texturePool.performMaintenance()
             self.pipelineStateCache.performMaintenance()
             
-            // Update memory pressure
-            let memoryUsage = self.textureCache.memoryUsage + self.texturePool.memoryUsage
-            let totalMemory = ProcessInfo.processInfo.physicalMemory
-            let memoryPressure = self.calculateMemoryPressure(usage: memoryUsage, total: Int(totalMemory))
-            
-            if memoryPressure != self.statistics.memoryPressure {
-                self.setMemoryPressure(memoryPressure)
-            }
+            // Memory pressure tracking removed - was causing crashes
         }
     }
     

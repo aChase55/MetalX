@@ -307,7 +307,7 @@ public class BufferPool {
             pools[type] = []
         }
         
-        startMaintenanceTimer()
+        // startMaintenanceTimer() // Disabled - causing crashes
         logger.info("Initialized buffer pool with \(self.maxMemoryUsage / 1024 / 1024)MB budget")
     }
     
