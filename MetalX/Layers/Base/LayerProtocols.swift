@@ -54,20 +54,20 @@ enum MaskMode {
 }
 
 protocol MaskableLayer: Layer {
-    var mask: Layer? { get set }
+    var mask: (any Layer)? { get set }
     var maskMode: MaskMode { get set }
 }
 
 // MARK: - Group Support
 
-protocol GroupLayer: Layer {
-    var children: [Layer] { get set }
+protocol GroupLayer: AnyObject, Layer {
+    var children: [any Layer] { get set }
     var clipsToChildren: Bool { get set }
     var renderAsGroup: Bool { get set }
     
-    func addChild(_ layer: Layer)
-    func removeChild(_ layer: Layer)
-    func reorderChild(_ layer: Layer, to index: Int)
+    func addChild(_ layer: any Layer)
+    func removeChild(_ layer: any Layer)
+    func reorderChild(_ layer: any Layer, to index: Int)
 }
 
 // MARK: - Effect Protocol

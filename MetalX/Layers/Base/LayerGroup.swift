@@ -4,7 +4,7 @@ import CoreGraphics
 
 // Layer group implementation for hierarchical layer management
 class LayerGroup: BaseLayer, GroupLayer {
-    var children: [Layer] = []
+    var children: [any Layer] = []
     var clipsToChildren: Bool = false
     var renderAsGroup: Bool = true
     
@@ -19,19 +19,19 @@ class LayerGroup: BaseLayer, GroupLayer {
     
     // MARK: - Group Management
     
-    func addChild(_ layer: Layer) {
+    func addChild(_ layer: any Layer) {
         children.append(layer)
         invalidateCache()
         updateBounds()
     }
     
-    func removeChild(_ layer: Layer) {
+    func removeChild(_ layer: any Layer) {
         children.removeAll { $0.id == layer.id }
         invalidateCache()
         updateBounds()
     }
     
-    func reorderChild(_ layer: Layer, to index: Int) {
+    func reorderChild(_ layer: any Layer, to index: Int) {
         guard let currentIndex = children.firstIndex(where: { $0.id == layer.id }) else { return }
         guard index >= 0 && index < children.count else { return }
         
@@ -115,7 +115,7 @@ class LayerGroup: BaseLayer, GroupLayer {
     }
     
     // Find which child was hit
-    func hitTestChild(point: CGPoint) -> Layer? {
+    func hitTestChild(point: CGPoint) -> (any Layer)? {
         guard hitTest(point: point) else { return nil }
         
         for child in children.reversed() {

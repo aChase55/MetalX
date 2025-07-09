@@ -40,11 +40,11 @@ struct LayerTransform {
 }
 
 // Base layer protocol
-protocol Layer: AnyObject {
-    var id: UUID { get }
+protocol Layer: AnyObject, Identifiable {
+    var id: UUID { get set }
     var name: String { get set }
-    var visible: Bool { get set }
-    var locked: Bool { get set }
+    var isVisible: Bool { get set }
+    var isLocked: Bool { get set }
     var opacity: Float { get set }
     var blendMode: BlendMode { get set }
     var transform: LayerTransform { get set }
@@ -59,10 +59,10 @@ protocol Layer: AnyObject {
 
 // Base implementation
 class BaseLayer: Layer {
-    let id = UUID()
+    var id = UUID()
     var name: String = "Layer"
-    var visible: Bool = true
-    var locked: Bool = false
+    var isVisible: Bool = true
+    var isLocked: Bool = false
     var opacity: Float = 1.0
     var blendMode: BlendMode = .normal
     var transform = LayerTransform()

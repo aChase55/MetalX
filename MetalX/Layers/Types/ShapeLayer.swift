@@ -280,9 +280,13 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
             lastRenderScale = currentScale
         }
         
-        // Make sure we have positive dimensions
-        let textureWidth = max(1, Int(abs(bounds.width) * renderScale))
-        let textureHeight = max(1, Int(abs(bounds.height) * renderScale))
+        // Make sure we have positive dimensions and respect Metal limits
+        let maxTextureSize = 8192
+        let requestedWidth = Int(abs(bounds.width) * renderScale)
+        let requestedHeight = Int(abs(bounds.height) * renderScale)
+        
+        let textureWidth = max(1, min(requestedWidth, maxTextureSize))
+        let textureHeight = max(1, min(requestedHeight, maxTextureSize))
         
         // Texture size: \(textureWidth) x \(textureHeight)
         

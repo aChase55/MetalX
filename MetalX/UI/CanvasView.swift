@@ -148,7 +148,6 @@ struct CanvasView: UIViewRepresentable {
             // Hit test layers from top to bottom
             for layer in canvas.layers.reversed() {
                 let hit = layer.hitTest(point: location)
-                let transformedBounds = layer.getBounds(includeEffects: false)
                 if hit {
                     canvas.selectLayer(layer)
                     return
@@ -277,7 +276,7 @@ struct CanvasView: UIViewRepresentable {
             
             // Render each layer
             for layer in canvas.layers {
-                if layer.visible {
+                if layer.isVisible {
                     renderLayer(layer, encoder: encoder)
                 }
             }
@@ -290,7 +289,7 @@ struct CanvasView: UIViewRepresentable {
             canvas.needsDisplay = false
         }
         
-        func renderLayer(_ layer: Layer, encoder: MTLRenderCommandEncoder) {
+        func renderLayer(_ layer: any Layer, encoder: MTLRenderCommandEncoder) {
             var texture: MTLTexture?
             
             // Get texture from different layer types
@@ -342,7 +341,7 @@ struct CanvasView: UIViewRepresentable {
             }
         }
         
-        func calculateTransformMatrix(for layer: Layer, canvasSize: CGSize) -> simd_float4x4 {
+        func calculateTransformMatrix(for layer: any Layer, canvasSize: CGSize) -> simd_float4x4 {
             // Convert from screen coordinates to NDC (-1 to 1)
             let transform = layer.transform
             

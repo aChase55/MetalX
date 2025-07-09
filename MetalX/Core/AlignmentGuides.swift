@@ -15,7 +15,7 @@ struct AlignmentGuide {
 class AlignmentEngine {
     let snapThreshold: CGFloat = 10.0
     
-    func findAlignmentGuides(for layer: Layer, in layers: [Layer], canvasSize: CGSize) -> [AlignmentGuide] {
+    func findAlignmentGuides(for layer: any Layer, in layers: [any Layer], canvasSize: CGSize) -> [AlignmentGuide] {
         var guides: [AlignmentGuide] = []
         
         let movingBounds = layer.getBounds(includeEffects: false)
@@ -85,7 +85,7 @@ class AlignmentEngine {
         return guides
     }
     
-    func snapPosition(_ position: CGPoint, for layer: Layer, guides: [AlignmentGuide]) -> CGPoint {
+    func snapPosition(_ position: CGPoint, for layer: any Layer, guides: [AlignmentGuide]) -> CGPoint {
         var snappedPosition = position
         let bounds = layer.bounds
         let scaledBounds = CGRect(
