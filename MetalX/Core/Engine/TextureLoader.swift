@@ -465,6 +465,11 @@ public class TextureLoader {
     }
     
     private func generateMipmaps(for texture: MTLTexture) throws {
+        // Only generate mipmaps if texture has multiple mip levels
+        guard texture.mipmapLevelCount > 1 else {
+            return // No need to generate mipmaps for single-level textures
+        }
+        
         guard let commandBuffer = device.makeCommandBuffer(label: "Mipmap Generation") else {
             throw TextureLoaderError.textureCreationFailed
         }
@@ -630,8 +635,9 @@ extension TextureLoader {
             bytesPerRow: width * 4
         )
         
-        // Generate mipmaps
-        if let commandBuffer = device.makeCommandBuffer(label: "Checkerboard Mipmaps"),
+        // Generate mipmaps only if texture has multiple mip levels
+        if texture.mipmapLevelCount > 1,
+           let commandBuffer = device.makeCommandBuffer(label: "Checkerboard Mipmaps"),
            let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
             blitEncoder.generateMipmaps(for: texture)
             blitEncoder.endEncoding()

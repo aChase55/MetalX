@@ -26,6 +26,9 @@ struct CanvasEditorView: View {
                 .onChange(of: canvas.layers.count) {
                     hasUnsavedChanges = true
                 }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CanvasNeedsDisplay"))) { _ in
+                    hasUnsavedChanges = true
+                }
             
             // Floating controls overlay
             VStack {
@@ -232,6 +235,9 @@ struct CanvasEditorView: View {
         let canvasBounds = CGRect(origin: .zero, size: canvas.size)
         let padding: CGFloat = 50
         
+        // Comment out automatic repositioning to preserve saved positions
+        // This was causing layers to be moved to center during load
+        /*
         for layer in canvas.layers {
             let position = layer.transform.position
             // Check if layer is significantly outside canvas bounds
@@ -244,8 +250,10 @@ struct CanvasEditorView: View {
                 needsRepositioning = true
             }
         }
+        */
         
-        hasUnsavedChanges = needsRepositioning
+        // Initialize hasUnsavedChanges to false since we just loaded
+        hasUnsavedChanges = false
         lastSaveDate = Date()
     }
     

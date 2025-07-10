@@ -98,7 +98,9 @@ class SimpleTextRenderer {
             )
             
             // Generate mipmaps for better quality when scaled
-            if let commandQueue = device.makeCommandQueue(),
+            // Only generate mipmaps if texture has multiple mip levels
+            if texture.mipmapLevelCount > 1,
+               let commandQueue = device.makeCommandQueue(),
                let commandBuffer = commandQueue.makeCommandBuffer(),
                let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
                 blitEncoder.generateMipmaps(for: texture)

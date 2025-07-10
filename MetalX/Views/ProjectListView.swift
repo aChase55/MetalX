@@ -69,6 +69,9 @@ struct ProjectListView: View {
             .navigationDestination(item: $selectedProject) { project in
                 CanvasEditorView(project: project, projectList: projectList)
             }
+            .onAppear {
+                projectList.loadProjects()
+            }
         }
     }
 }

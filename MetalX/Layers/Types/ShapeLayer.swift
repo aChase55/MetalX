@@ -358,7 +358,9 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         commandBuffer.waitUntilCompleted()
         
         // Generate mipmaps for better quality when scaled down
-        if let blitCommandBuffer = commandQueue.makeCommandBuffer(),
+        // Only generate mipmaps if texture has multiple mip levels
+        if texture.mipmapLevelCount > 1,
+           let blitCommandBuffer = commandQueue.makeCommandBuffer(),
            let blitEncoder = blitCommandBuffer.makeBlitCommandEncoder() {
             blitEncoder.generateMipmaps(for: texture)
             blitEncoder.endEncoding()

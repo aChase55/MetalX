@@ -100,8 +100,23 @@ extension VectorShapeLayer {
         }
         
         var fillColor: CodableColor? = nil
-        if case .solid(let color) = fillType {
-            fillColor = CodableColor(cgColor: color)
+        var gradientData: GradientSerializationData? = nil
+        
+        if let fillType = fillType {
+            switch fillType {
+            case .solid(let color):
+                fillColor = CodableColor(cgColor: color)
+            case .gradient(let gradient):
+                gradientData = GradientSerializationData(
+                    type: gradientTypeString(gradient.type),
+                    colorStops: gradient.colorStops.map { ColorStopData(color: CodableColor(cgColor: $0.color), location: $0.location) },
+                    startPoint: gradient.startPoint,
+                    endPoint: gradient.endPoint
+                )
+            case .pattern(_):
+                // Pattern fills not supported in serialization yet
+                break
+            }
         }
         
         let strokeCol = strokeColor.map { CodableColor(cgColor: $0) }
@@ -109,11 +124,20 @@ extension VectorShapeLayer {
         return ShapeLayerData(
             shapeType: shapeType,
             fillColor: fillColor,
+            gradientData: gradientData,
             strokeColor: strokeCol,
             strokeWidth: strokeWidth,
             size: CGSize(width: bounds.width, height: bounds.height),
             sides: sides
         )
+    }
+    
+    private func gradientTypeString(_ type: Gradient.GradientType) -> String {
+        switch type {
+        case .linear: return "linear"
+        case .radial: return "radial"
+        case .angular: return "angular"
+        }
     }
 }
 
@@ -168,7 +192,10 @@ class LayerFactory {
             layer = VectorShapeLayer.rectangle(size: shapeData.size)
         }
         
-        if let fillColor = shapeData.fillColor {
+        // Load fill type (gradient takes precedence over solid color)
+        if let gradientData = shapeData.gradientData {
+            layer.fillType = .gradient(loadGradient(from: gradientData))
+        } else if let fillColor = shapeData.fillColor {
             layer.fillType = .solid(fillColor.cgColor)
         }
         
@@ -180,6 +207,31 @@ class LayerFactory {
         
         applyCommonProperties(to: layer, from: data)
         return layer
+    }
+    
+    private static func loadGradient(from data: GradientSerializationData) -> Gradient {
+        let gradientType: Gradient.GradientType
+        switch data.type {
+        case "linear":
+            gradientType = .linear
+        case "radial":
+            gradientType = .radial
+        case "angular":
+            gradientType = .angular
+        default:
+            gradientType = .linear // fallback
+        }
+        
+        let colorStops = data.colorStops.map { stopData in
+            Gradient.ColorStop(color: stopData.color.cgColor, location: stopData.location)
+        }
+        
+        return Gradient(
+            type: gradientType,
+            colorStops: colorStops,
+            startPoint: data.startPoint,
+            endPoint: data.endPoint
+        )
     }
     
     private static func applyCommonProperties(to layer: any Layer, from data: LayerData) {

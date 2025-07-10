@@ -74,10 +74,23 @@ struct TextLayerData: Codable, Hashable, Equatable {
 struct ShapeLayerData: Codable, Hashable, Equatable {
     var shapeType: String  // "rectangle", "ellipse", "polygon"
     var fillColor: CodableColor?
+    var gradientData: GradientSerializationData?
     var strokeColor: CodableColor?
     var strokeWidth: Float
     var size: CGSize
     var sides: Int?  // For polygons
+}
+
+struct GradientSerializationData: Codable, Hashable, Equatable {
+    var type: String // "linear", "radial", "angular"
+    var colorStops: [ColorStopData]
+    var startPoint: CGPoint
+    var endPoint: CGPoint
+}
+
+struct ColorStopData: Codable, Hashable, Equatable {
+    var color: CodableColor
+    var location: Float
 }
 
 // MARK: - Helper Types
@@ -96,7 +109,18 @@ struct CodableColor: Codable, Hashable, Equatable {
     }
     
     init(cgColor: CGColor) {
-        let components = cgColor.components ?? [0, 0, 0, 1]
+        // Convert to RGB color space first to ensure consistent component layout
+        guard let rgbColor = cgColor.converted(to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil) else {
+            // Fallback if conversion fails
+            let components = cgColor.components ?? [0, 0, 0, 1]
+            self.red = components.count > 0 ? components[0] : 0
+            self.green = components.count > 1 ? components[1] : 0
+            self.blue = components.count > 2 ? components[2] : 0
+            self.alpha = components.count > 3 ? components[3] : 1
+            return
+        }
+        
+        let components = rgbColor.components ?? [0, 0, 0, 1]
         self.red = components.count > 0 ? components[0] : 0
         self.green = components.count > 1 ? components[1] : 0
         self.blue = components.count > 2 ? components[2] : 0
