@@ -307,9 +307,13 @@ struct GradientData {
         let endPoint: CGPoint
         
         switch type {
-        case .linear, .angular:
+        case .linear:
             startPoint = CGPoint(x: linearStartPoint.x, y: linearStartPoint.y)
             endPoint = CGPoint(x: linearEndPoint.x, y: linearEndPoint.y)
+        case .angular:
+            // For angular gradients, use center point for both start and end
+            startPoint = CGPoint(x: 0.5, y: 0.5) // Center of the shape
+            endPoint = CGPoint(x: 0.5, y: 0.5)   // Same as start for angular
         case .radial:
             // For radial gradients, startPoint is center, endPoint defines radius
             startPoint = CGPoint(x: radialCenter.x, y: radialCenter.y)
