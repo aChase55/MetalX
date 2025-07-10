@@ -43,8 +43,7 @@ struct BoundedCanvasView: UIViewRepresentable {
         context.coordinator.scrollView = scrollView
         context.coordinator.canvasContainer = canvasContainer
         context.coordinator.metalView = metalView
-        context.coordinator.setupQuadRenderer()
-        context.coordinator.setupGestures(for: metalView)
+        context.coordinator.setup()
         
         // Setup constraints
         NSLayoutConstraint.activate([
@@ -82,32 +81,18 @@ struct BoundedCanvasView: UIViewRepresentable {
         weak var canvasContainer: UIView?
         weak var metalView: MTKView?
         
-        private var commandQueue: MTLCommandQueue?
-        private var quadRenderer: QuadRenderer?
-        private var advancedBlendRenderer: AdvancedBlendRenderer?
-        private var shadowRenderer: ShadowRenderer?
-        private var accumulationTexture: MTLTexture?
-        private var tempTexture: MTLTexture?
-        
-        // Shared Metal resources to prevent memory leaks
-        private var sharedMetalDevice: MetalDevice?
-        private var sharedRenderContext: RenderContext?
-        
-        // Gesture handling
-        private var panStartLocation: CGPoint = .zero
-        private var pinchStartScale: CGFloat = 1.0
-        private var rotationStartAngle: CGFloat = 0.0
+        // Separated rendering and gesture handling
+        private var renderer: MetalXRenderer?
+        private var gestureCoordinator: GestureCoordinator?
         
         // Canvas transform for pan/zoom when no selection
         private var canvasOffset: CGPoint = .zero
         private var canvasScale: CGFloat = 1.0
         var lastCanvasSize: CGSize = .zero
         
-        // Alignment guides
-        private var alignmentEngine = AlignmentEngine()
-        private var guideRenderer = GuideRenderer()
-        private var activeGuides: [AlignmentGuide] = []
-        private weak var guideLayer: CALayer?
+        // Selection animation
+        private var displayLink: CADisplayLink?
+        private var startTime: CFTimeInterval = 0
         
         init(canvas: Canvas) {
             self.canvas = canvas
@@ -132,12 +117,42 @@ struct BoundedCanvasView: UIViewRepresentable {
         
         deinit {
             NotificationCenter.default.removeObserver(self)
+            displayLink?.invalidate()
+        }
+        
+        func setup() {
+            guard let device = metalView?.device else { return }
+            
+            // Initialize renderer
+            renderer = MetalXRenderer(device: device)
+            
+            // Initialize gesture coordinator
+            gestureCoordinator = GestureCoordinator(canvas: canvas)
+            
+            // Setup gesture callbacks
+            gestureCoordinator?.onNeedsDisplay = { [weak self] in
+                self?.metalView?.setNeedsDisplay()
+            }
+            
+            gestureCoordinator?.onGuidesChanged = { [weak self] guides in
+                // Handle guide display updates if needed
+            }
+            
+            // Setup gestures
+            if let metalView = metalView, let scrollView = scrollView {
+                gestureCoordinator?.setupGestures(for: metalView, scrollView: scrollView)
+            }
+            
+            // Set initial scroll view state
+            selectionChanged()
         }
         
         @objc private func selectionChanged() {
-            // Update scroll view interaction based on selection
-            scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
-            scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
+            // Update gesture coordinator
+            gestureCoordinator?.updateScrollViewInteraction()
+            
+            // Update selection animation
+            updateSelectionAnimation()
             
             // Force redraw to update selection rendering
             metalView?.setNeedsDisplay()
@@ -148,31 +163,23 @@ struct BoundedCanvasView: UIViewRepresentable {
             metalView?.setNeedsDisplay()
         }
         
-        func setupQuadRenderer() {
-            guard let device = metalView?.device else { return }
-            quadRenderer = QuadRenderer(device: device)
-            advancedBlendRenderer = AdvancedBlendRenderer(device: device)
-            commandQueue = device.makeCommandQueue()
-            
-            // Initialize shadow renderer
-            do {
-                shadowRenderer = try ShadowRenderer(device: device)
-            } catch {
-                print("Failed to create shadow renderer: \(error)")
-            }
-            
-            // Initialize shared Metal resources to prevent memory leaks
-            do {
-                sharedMetalDevice = try MetalDevice(preferredDevice: device)
-                if let metalDevice = sharedMetalDevice {
-                    sharedRenderContext = RenderContext(device: metalDevice)
+        private func updateSelectionAnimation() {
+            if canvas.selectedLayer != nil {
+                // Start animation if not running
+                if displayLink == nil {
+                    startTime = CACurrentMediaTime()
+                    displayLink = CADisplayLink(target: self, selector: #selector(animationTick))
+                    displayLink?.add(to: .main, forMode: .common)
                 }
-            } catch {
-                print("Failed to create shared Metal device: \(error)")
+            } else {
+                // Stop animation
+                displayLink?.invalidate()
+                displayLink = nil
             }
-            
-            // Set initial scroll view state
-            selectionChanged()
+        }
+        
+        @objc private func animationTick() {
+            metalView?.setNeedsDisplay()
         }
         
         func updateCanvasSize() {
@@ -269,375 +276,14 @@ struct BoundedCanvasView: UIViewRepresentable {
             metalView?.setNeedsDisplay()
         }
         
-        // MARK: - Gesture Handling
-        
-        func setupGestures(for view: UIView) {
-            // Layer manipulation gestures
-            let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-            view.addGestureRecognizer(panGesture)
-            
-            let pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
-            view.addGestureRecognizer(pinchGesture)
-            
-            let rotationGesture = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation(_:)))
-            view.addGestureRecognizer(rotationGesture)
-            
-            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-            view.addGestureRecognizer(tapGesture)
-            
-            // Enable simultaneous gestures
-            panGesture.delegate = self
-            pinchGesture.delegate = self
-            rotationGesture.delegate = self
-            tapGesture.delegate = self
-        }
-        
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            guard let metalView = metalView else { return }
-            let location = gesture.location(in: metalView)
-            
-            // Hit test layers - location is already in canvas coordinates since metalView is scaled
-            for layer in canvas.layers.reversed() {
-                if layer.hitTest(point: location) {
-                    canvas.selectLayer(layer)
-                    // Just update display, don't trigger layout
-                    canvas.needsDisplay = true
-                    return
-                }
-            }
-            
-            // No layer hit, deselect
-            canvas.selectLayer(nil)
-            canvas.needsDisplay = true
-        }
-        
-        @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
-            guard canvas.selectedLayer != nil else { 
-                // Let scroll view handle panning when no selection
-                return 
-            }
-            
-            if let selectedLayer = canvas.selectedLayer {
-                // Move selected layer
-                switch gesture.state {
-                case .began:
-                    panStartLocation = selectedLayer.transform.position
-                    // Prevent scroll view from interfering
-                    scrollView?.isScrollEnabled = false
-                case .changed:
-                    // Get the translation in the metalView's coordinate system (which is inside the scroll view)
-                    guard let metalView = metalView else { return }
-                    let translation = gesture.translation(in: metalView)
-                    
-                    // Calculate new position
-                    var newPosition = CGPoint(
-                        x: panStartLocation.x + translation.x,
-                        y: panStartLocation.y + translation.y
-                    )
-                    
-                    // Find alignment guides
-                    activeGuides = alignmentEngine.findAlignmentGuides(
-                        for: selectedLayer,
-                        in: canvas.layers,
-                        canvasSize: metalView.bounds.size
-                    )
-                    
-                    // Snap to guides
-                    newPosition = alignmentEngine.snapPosition(newPosition, for: selectedLayer, guides: activeGuides)
-                    
-                    // Apply the snapped position
-                    selectedLayer.transform.position = newPosition
-                    
-                    // Update guide display
-                    updateGuideDisplay()
-                    
-                    canvas.setNeedsDisplay()
-                    metalView.setNeedsDisplay()
-                case .ended, .cancelled:
-                    // Hide guides when done
-                    activeGuides = []
-                    updateGuideDisplay()
-                    
-                    // Re-enable scroll view after gesture
-                    scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
-                default:
-                    break
-                }
-            }
-        }
-        
-        @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
-            guard let selectedLayer = canvas.selectedLayer else { return }
-            
-            switch gesture.state {
-            case .began:
-                pinchStartScale = selectedLayer.transform.scale
-                // Disable scroll view zoom
-                scrollView?.pinchGestureRecognizer?.isEnabled = false
-            case .changed:
-                selectedLayer.transform.scale = pinchStartScale * gesture.scale
-                canvas.setNeedsDisplay()
-                metalView?.setNeedsDisplay()
-            case .ended, .cancelled:
-                // Re-enable scroll view zoom if no selection
-                scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
-            default:
-                break
-            }
-        }
-        
-        @objc func handleRotation(_ gesture: UIRotationGestureRecognizer) {
-            guard let selectedLayer = canvas.selectedLayer else { return }
-            
-            switch gesture.state {
-            case .began:
-                rotationStartAngle = selectedLayer.transform.rotation
-            case .changed:
-                selectedLayer.transform.rotation = rotationStartAngle + gesture.rotation
-                canvas.setNeedsDisplay()
-                metalView?.setNeedsDisplay()
-            default:
-                break
-            }
-        }
-        
-        private func convertToCanvasCoordinates(_ viewPoint: CGPoint) -> CGPoint {
-            // Convert from view coordinates to canvas coordinates
-            let scale = scrollView?.zoomScale ?? 1.0
-            return CGPoint(
-                x: viewPoint.x / scale,
-                y: viewPoint.y / scale
-            )
-        }
-        
         // MARK: - MTKViewDelegate
         
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-            // Create accumulation texture if needed
-            guard size.width > 0, size.height > 0,
-                  let device = view.device else { return }
-            
-            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                pixelFormat: .bgra8Unorm,
-                width: Int(size.width),
-                height: Int(size.height),
-                mipmapped: false
-            )
-            descriptor.usage = [.shaderRead, .renderTarget]
-            descriptor.storageMode = .shared
-            
-            accumulationTexture = device.makeTexture(descriptor: descriptor)
-            tempTexture = device.makeTexture(descriptor: descriptor)
+            renderer?.updateDrawableSize(size)
         }
         
         func draw(in view: MTKView) {
-            guard canvas.needsDisplay else { return }
-            
-            guard let drawable = view.currentDrawable,
-                  let descriptor = view.currentRenderPassDescriptor,
-                  let commandBuffer = commandQueue?.makeCommandBuffer() else { return }
-            
-            // Always use advanced rendering path for consistent coordinate system
-            renderWithAdvancedBlending(drawable: drawable, descriptor: descriptor, commandBuffer: commandBuffer)
-            
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
-            
-            canvas.needsDisplay = false
-        }
-        
-        private func renderLayer(_ layer: any Layer, encoder: MTLRenderCommandEncoder) {
-            // Get layer texture
-            var texture: MTLTexture? = nil
-            
-            if let imageLayer = layer as? ImageLayer {
-                texture = imageLayer.texture
-            } else if let textLayer = layer as? TextLayer {
-                texture = textLayer.texture
-            } else if let shapeLayer = layer as? VectorShapeLayer {
-                if let context = sharedRenderContext {
-                    texture = shapeLayer.render(context: context)
-                }
-            }
-            
-            if let texture = texture {
-                let transform = calculateTransformMatrix(for: layer)
-                quadRenderer?.render(encoder: encoder, texture: texture, transform: transform, opacity: layer.opacity, blendMode: layer.blendMode)
-            }
-        }
-        
-        private func renderSelection(for layer: any Layer, encoder: MTLRenderCommandEncoder) {
-            let time = Float(CACurrentMediaTime())
-            let transform = calculateTransformMatrix(for: layer)
-            quadRenderer?.renderSelection(
-                encoder: encoder,
-                transform: transform,
-                viewportSize: metalView?.bounds.size ?? .zero,
-                time: time
-            )
-        }
-        
-        
-        private func renderWithAdvancedBlending(drawable: CAMetalDrawable, descriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) {
-            guard let accumulationTexture = accumulationTexture,
-                  let tempTexture = tempTexture,
-                  let advancedBlendRenderer = advancedBlendRenderer,
-                  let metalView = metalView else {
-                // Fall back to simple rendering if textures not ready
-                guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
-                for layer in canvas.layers where layer.isVisible {
-                    renderLayer(layer, encoder: encoder)
-                }
-                if let selectedLayer = canvas.selectedLayer {
-                    renderSelection(for: selectedLayer, encoder: encoder)
-                }
-                encoder.endEncoding()
-                return
-            }
-            
-            let drawableSize = metalView.drawableSize
-            
-            
-            // Clear accumulation texture
-            let clearDescriptor = MTLRenderPassDescriptor()
-            clearDescriptor.colorAttachments[0].texture = accumulationTexture
-            clearDescriptor.colorAttachments[0].loadAction = .clear
-            clearDescriptor.colorAttachments[0].clearColor = descriptor.colorAttachments[0].clearColor
-            clearDescriptor.colorAttachments[0].storeAction = .store
-            
-            guard let clearEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: clearDescriptor) else { return }
-            clearEncoder.endEncoding()
-            
-            // Render each layer
-            var currentTexture = accumulationTexture
-            var targetTexture = tempTexture
-            
-            for layer in canvas.layers where layer.isVisible {
-                // Get layer texture
-                guard let layerTexture = getLayerTexture(layer) else { continue }
-                
-                // Copy current to target first (for ping-pong rendering)
-                if let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
-                    blitEncoder.copy(
-                        from: currentTexture,
-                        sourceSlice: 0,
-                        sourceLevel: 0,
-                        sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-                        sourceSize: MTLSize(width: currentTexture.width, height: currentTexture.height, depth: 1),
-                        to: targetTexture,
-                        destinationSlice: 0,
-                        destinationLevel: 0,
-                        destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
-                    )
-                    blitEncoder.endEncoding()
-                }
-                
-                // Render shadow first if enabled
-                if layer.dropShadow.isEnabled, let shadowRenderer = shadowRenderer {
-                    let transform = calculateTransformMatrix(for: layer)
-                    shadowRenderer.renderShadow(
-                        layerTexture: layerTexture,
-                        targetTexture: targetTexture,
-                        commandBuffer: commandBuffer,
-                        dropShadow: layer.dropShadow,
-                        transform: transform,
-                        viewportSize: drawableSize,
-                        layerBounds: layer.bounds
-                    )
-                }
-                
-                // Always use advanced blend renderer for consistent coordinate system
-                let blendDescriptor = MTLRenderPassDescriptor()
-                blendDescriptor.colorAttachments[0].texture = targetTexture
-                blendDescriptor.colorAttachments[0].loadAction = .load
-                blendDescriptor.colorAttachments[0].storeAction = .store
-                
-                if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: blendDescriptor) {
-                    let transform = calculateTransformMatrix(for: layer)
-                    
-                    advancedBlendRenderer.render(
-                        encoder: encoder,
-                        sourceTexture: layerTexture,
-                        destinationTexture: currentTexture,  // Read from current
-                        transform: transform,
-                        opacity: layer.opacity,
-                        blendMode: layer.blendMode
-                    )
-                    encoder.endEncoding()
-                }
-                
-                // Swap textures
-                swap(&currentTexture, &targetTexture)
-            }
-            
-            // Final pass: copy the current texture to drawable
-            if let finalEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) {
-                quadRenderer?.render(
-                    encoder: finalEncoder,
-                    texture: currentTexture,  // Use whichever texture has the final result
-                    transform: matrix_identity_float4x4,
-                    opacity: 1.0,
-                    blendMode: .normal
-                )
-                
-                // Draw selection on top
-                if let selectedLayer = canvas.selectedLayer {
-                    renderSelection(for: selectedLayer, encoder: finalEncoder)
-                }
-                
-                finalEncoder.endEncoding()
-            }
-        }
-        
-        private func getLayerTexture(_ layer: any Layer) -> MTLTexture? {
-            if let imageLayer = layer as? ImageLayer {
-                return imageLayer.texture
-            } else if let textLayer = layer as? TextLayer {
-                return textLayer.texture
-            } else if let shapeLayer = layer as? VectorShapeLayer {
-                if let context = sharedRenderContext {
-                    return shapeLayer.render(context: context)
-                }
-            }
-            return nil
-        }
-        
-        private func calculateTransformMatrix(for layer: any Layer) -> simd_float4x4 {
-            // Transform from canvas space to NDC
-            let canvasSize = canvas.size
-            let transform = layer.transform
-            let layerSize = layer.bounds.size
-            
-            // Scale to convert from canvas coordinates to NDC
-            let pixelToNDC = simd_float2(2.0 / Float(canvasSize.width), -2.0 / Float(canvasSize.height))
-            
-            // Calculate position in NDC space
-            let centerX = Float(transform.position.x)
-            let centerY = Float(transform.position.y)
-            
-            // Layer dimensions in canvas space
-            let halfWidth = Float(layerSize.width * transform.scale) * 0.5
-            let halfHeight = Float(layerSize.height * transform.scale) * 0.5
-            
-            // Build transform matrix
-            var matrix = matrix_identity_float4x4
-            
-            // Apply rotation
-            let angle = Float(transform.rotation)
-            let cos_r = cos(angle)
-            let sin_r = sin(angle)
-            
-            // Scale and rotate
-            matrix.columns.0.x = cos_r * halfWidth * pixelToNDC.x
-            matrix.columns.0.y = sin_r * halfWidth * pixelToNDC.y
-            matrix.columns.1.x = -sin_r * halfHeight * pixelToNDC.x
-            matrix.columns.1.y = cos_r * halfHeight * pixelToNDC.y
-            
-            // Translation (convert from canvas center to NDC)
-            matrix.columns.3.x = (centerX - Float(canvasSize.width) * 0.5) * pixelToNDC.x
-            matrix.columns.3.y = (centerY - Float(canvasSize.height) * 0.5) * pixelToNDC.y
-            
-            return matrix
+            renderer?.render(canvas: canvas, in: view, selectedLayer: canvas.selectedLayer)
         }
     }
 }
@@ -691,21 +337,5 @@ extension BoundedCanvasView.Coordinator: UIGestureRecognizerDelegate {
         }
         
         return true
-    }
-    
-    // MARK: - Alignment Guide Display
-    
-    private func updateGuideDisplay() {
-        // Remove existing guide layer
-        guideLayer?.removeFromSuperlayer()
-        
-        guard !activeGuides.isEmpty, let metalView = metalView else {
-            return
-        }
-        
-        // Create new guide layer
-        let newGuideLayer = guideRenderer.renderGuides(activeGuides, in: metalView)
-        metalView.layer.addSublayer(newGuideLayer)
-        guideLayer = newGuideLayer
     }
 }
