@@ -26,33 +26,6 @@ vertex BlurVertexOut blurVertex(uint vertexID [[vertex_id]]) {
     return out;
 }
 
-// Vertex shader with transform for shadow composite
-vertex BlurVertexOut blurVertexWithTransform(uint vertexID [[vertex_id]],
-                                            constant float4x4& transform [[buffer(0)]]) {
-    BlurVertexOut out;
-    
-    // Create a quad using triangle strip
-    float2 positions[4] = {
-        float2(-1.0, -1.0),  // bottom-left
-        float2( 1.0, -1.0),  // bottom-right
-        float2(-1.0,  1.0),  // top-left
-        float2( 1.0,  1.0)   // top-right
-    };
-    
-    float2 texCoords[4] = {
-        float2(0.0, 1.0),
-        float2(1.0, 1.0),
-        float2(0.0, 0.0),
-        float2(1.0, 0.0)
-    };
-    
-    // Apply transform to position
-    float4 pos = float4(positions[vertexID], 0.0, 1.0);
-    out.position = transform * pos;
-    out.texCoord = texCoords[vertexID];
-    
-    return out;
-}
 
 // Gaussian weights for 9-tap filter
 constant float gaussianWeights[9] = {
@@ -97,17 +70,4 @@ fragment float4 gaussianBlurVertical(BlurVertexOut in [[stage_in]],
     return color;
 }
 
-// Shadow composite shader - combines blurred shadow with tint color
-fragment float4 shadowComposite(BlurVertexOut in [[stage_in]],
-                               texture2d<float> shadowTexture [[texture(0)]],
-                               constant float4& shadowColor [[buffer(0)]],
-                               constant float& shadowOpacity [[buffer(1)]]) {
-    constexpr sampler textureSampler(filter::linear, address::clamp_to_edge);
-    
-    float4 shadow = shadowTexture.sample(textureSampler, in.texCoord);
-    
-    // Use the alpha channel from the blurred texture and apply shadow color
-    float alpha = shadow.a * shadowOpacity;
-    return float4(shadowColor.rgb, alpha);
-}
 

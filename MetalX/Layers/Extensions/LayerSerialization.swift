@@ -347,7 +347,14 @@ extension Canvas {
     func toProject(name: String) -> MetalXProject {
         var project = MetalXProject(name: name, canvasSize: size)
         project.backgroundColor = CodableColor(red: 0, green: 0, blue: 0, alpha: 1)
-        project.layers = layers.map { $0.toLayerData() }
+        // Filter out shadow layers when saving - they'll be recreated on load
+        project.layers = layers.compactMap { layer in
+            // Skip shadow layers
+            if layer is ShadowLayer {
+                return nil
+            }
+            return layer.toLayerData()
+        }
         return project
     }
     

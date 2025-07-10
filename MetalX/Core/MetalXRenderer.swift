@@ -5,7 +5,7 @@ import simd
 class MetalXRenderer {
     private let device: MTLDevice
     private var commandQueue: MTLCommandQueue?
-    private var quadRenderer: QuadRenderer?
+    internal var quadRenderer: QuadRenderer?
     private var advancedBlendRenderer: AdvancedBlendRenderer?
     private var shadowRenderer: ShadowRenderer?
     private var sharedRenderContext: RenderContext?
@@ -26,7 +26,7 @@ class MetalXRenderer {
         
         // Initialize shadow renderer
         do {
-            shadowRenderer = try ShadowRenderer(device: device)
+            shadowRenderer = try ShadowRenderer(device: device, commandQueue: commandQueue!)
         } catch {
             print("Failed to create shadow renderer: \(error)")
         }
@@ -142,19 +142,7 @@ class MetalXRenderer {
                 blitEncoder.endEncoding()
             }
             
-            // Render shadow if enabled
-            if layer.dropShadow.isEnabled, let shadowRenderer = shadowRenderer {
-                let transform = calculateTransformMatrix(for: layer, canvasSize: canvas.size)
-                shadowRenderer.renderShadow(
-                    layerTexture: layerTexture,
-                    targetTexture: targetTexture,
-                    commandBuffer: commandBuffer,
-                    dropShadow: layer.dropShadow,
-                    transform: transform,
-                    viewportSize: viewportSize,
-                    layerBounds: layer.bounds
-                )
-            }
+            // Shadow is now handled as a separate layer, no special handling needed
             
             // Render layer with blending
             let blendDescriptor = MTLRenderPassDescriptor()
@@ -272,13 +260,19 @@ class MetalXRenderer {
             if let context = sharedRenderContext {
                 return shapeLayer.render(context: context)
             }
+        } else if let shadowLayer = layer as? ShadowLayer {
+            if let context = sharedRenderContext {
+                return shadowLayer.render(context: context)
+            }
         }
         return nil
     }
     
     func calculateTransformMatrix(for layer: any Layer, canvasSize: CGSize) -> simd_float4x4 {
-        let transform = layer.transform
-        let layerSize = layer.bounds.size
+        return calculateTransformMatrix(for: layer.transform, layerSize: layer.bounds.size, canvasSize: canvasSize)
+    }
+    
+    func calculateTransformMatrix(for transform: LayerTransform, layerSize: CGSize, canvasSize: CGSize) -> simd_float4x4 {
         
         // Scale to convert from canvas coordinates to NDC
         let pixelToNDC = simd_float2(2.0 / Float(canvasSize.width), -2.0 / Float(canvasSize.height))

@@ -170,6 +170,112 @@ struct ShapePropertiesView: View {
                 
                 Divider()
                 
+                // Shadow properties
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Drop Shadow")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Toggle("Enable Shadow", isOn: Binding(
+                        get: { shape.dropShadow.isEnabled },
+                        set: { 
+                            shape.dropShadow.isEnabled = $0
+                            canvas.updateShadowForLayer(shape)
+                        }
+                    ))
+                    
+                    if shape.dropShadow.isEnabled {
+                        // Shadow offset
+                        HStack {
+                            Text("Offset")
+                            VStack {
+                                HStack {
+                                    Text("X")
+                                        .font(.caption)
+                                        .frame(width: 20)
+                                    Slider(value: Binding(
+                                        get: { shape.dropShadow.offset.width },
+                                        set: { 
+                                            shape.dropShadow.offset.width = $0
+                                            canvas.updateShadowForLayer(shape)
+                                        }
+                                    ), in: -50...50)
+                                    Text("\(Int(shape.dropShadow.offset.width))")
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                        .frame(width: 30)
+                                }
+                                HStack {
+                                    Text("Y")
+                                        .font(.caption)
+                                        .frame(width: 20)
+                                    Slider(value: Binding(
+                                        get: { shape.dropShadow.offset.height },
+                                        set: { 
+                                            shape.dropShadow.offset.height = $0
+                                            canvas.updateShadowForLayer(shape)
+                                        }
+                                    ), in: -50...50)
+                                    Text("\(Int(shape.dropShadow.offset.height))")
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                        .frame(width: 30)
+                                }
+                            }
+                        }
+                        
+                        // Shadow blur
+                        HStack {
+                            Text("Blur")
+                            Slider(value: Binding(
+                                get: { shape.dropShadow.blur },
+                                set: { 
+                                    shape.dropShadow.blur = $0
+                                    canvas.updateShadowForLayer(shape)
+                                }
+                            ), in: 0...50)
+                            Text("\(Int(shape.dropShadow.blur))")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 30)
+                        }
+                        
+                        // Shadow opacity
+                        HStack {
+                            Text("Opacity")
+                            Slider(value: Binding(
+                                get: { CGFloat(shape.dropShadow.opacity) },
+                                set: { 
+                                    shape.dropShadow.opacity = Float($0)
+                                    canvas.updateShadowForLayer(shape)
+                                }
+                            ), in: 0...1)
+                            Text("\(Int(shape.dropShadow.opacity * 100))%")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 40)
+                        }
+                        
+                        // Shadow color
+                        HStack {
+                            Text("Color")
+                            Spacer()
+                            ColorPicker("", selection: Binding(
+                                get: { 
+                                    Color(UIColor(cgColor: shape.dropShadow.color))
+                                },
+                                set: { newColor in
+                                    shape.dropShadow.color = UIColor(newColor).cgColor
+                                    canvas.updateShadowForLayer(shape)
+                                }
+                            ))
+                            .labelsHidden()
+                        }
+                    }
+                }
+                
+                Divider()
+                
                 // Stroke properties
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Stroke")

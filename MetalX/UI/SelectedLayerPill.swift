@@ -202,7 +202,7 @@ struct LayerPropertySheet: View {
                 get: { layer.dropShadow.isEnabled },
                 set: { enabled in
                     layer.dropShadow.isEnabled = enabled
-                    canvas.setNeedsDisplay()
+                    canvas.updateShadowForLayer(layer)
                 }
             ))
             .font(.headline)
@@ -218,7 +218,7 @@ struct LayerPropertySheet: View {
                         get: { Color(UIColor(cgColor: layer.dropShadow.color)) },
                         set: { newColor in
                             layer.dropShadow.color = UIColor(newColor).cgColor
-                            canvas.setNeedsDisplay()
+                            canvas.updateShadowForLayer(layer)
                         }
                     ))
                     .labelsHidden()
@@ -236,7 +236,7 @@ struct LayerPropertySheet: View {
                             get: { layer.dropShadow.offset.width },
                             set: { newX in
                                 layer.dropShadow.offset.width = newX
-                                canvas.setNeedsDisplay()
+                                canvas.updateShadowForLayer(layer)
                             }
                         ), in: -20...20)
                         Text("\(Int(layer.dropShadow.offset.width))pt")
@@ -251,7 +251,7 @@ struct LayerPropertySheet: View {
                             get: { layer.dropShadow.offset.height },
                             set: { newY in
                                 layer.dropShadow.offset.height = newY
-                                canvas.setNeedsDisplay()
+                                canvas.updateShadowForLayer(layer)
                             }
                         ), in: -20...20)
                         Text("\(Int(layer.dropShadow.offset.height))pt")
@@ -277,9 +277,9 @@ struct LayerPropertySheet: View {
                         get: { layer.dropShadow.blur },
                         set: { newBlur in
                             layer.dropShadow.blur = newBlur
-                            canvas.setNeedsDisplay()
+                            canvas.updateShadowForLayer(layer)
                         }
-                    ), in: 0...20)
+                    ), in: 0...50)
                     .accentColor(.blue)
                 }
                 
@@ -299,7 +299,7 @@ struct LayerPropertySheet: View {
                         get: { CGFloat(layer.dropShadow.opacity) },
                         set: { newOpacity in
                             layer.dropShadow.opacity = Float(newOpacity)
-                            canvas.setNeedsDisplay()
+                            canvas.updateShadowForLayer(layer)
                         }
                     ), in: 0...1)
                     .accentColor(.blue)

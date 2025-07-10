@@ -20,7 +20,20 @@ class Canvas: ObservableObject {
     
     // Layer management
     func addLayer(_ layer: any Layer, at index: Int? = nil) {
-        let insertIndex = index ?? layers.count
+        var insertIndex = index ?? layers.count
+        
+        // If layer has shadow enabled, insert shadow layer first
+        if layer.dropShadow.isEnabled {
+            let shadowLayer = ShadowLayer(sourceLayer: layer)
+            shadowLayer.shadowOffset = layer.dropShadow.offset
+            shadowLayer.shadowBlur = layer.dropShadow.blur
+            shadowLayer.shadowColor = layer.dropShadow.color
+            shadowLayer.opacity = layer.dropShadow.opacity
+            shadowLayer.updateFromSource()
+            layers.insert(shadowLayer, at: insertIndex)
+            insertIndex += 1 // Increment index so the layer goes after the shadow
+        }
+        
         layers.insert(layer, at: insertIndex)
         updateZIndices()
         needsDisplay = true
@@ -87,6 +100,19 @@ class Canvas: ObservableObject {
         needsDisplay = true
     }
     
+    // Load layers and rebuild shadows
+    func loadLayers(_ newLayers: [any Layer]) {
+        layers.removeAll()
+        selectedLayer = nil
+        
+        // Add layers in order, which will create shadows as needed
+        for layer in newLayers {
+            addLayer(layer)
+        }
+        
+        needsDisplay = true
+    }
+    
     // Private helpers
     private func updateZIndices() {
         for (index, layer) in layers.enumerated() {
@@ -96,11 +122,49 @@ class Canvas: ObservableObject {
     
     // Mark canvas as needing redraw
     func setNeedsDisplay() {
+        // Update shadow positions before redrawing
+        for layer in layers {
+            if let shadowLayer = layer as? ShadowLayer {
+                shadowLayer.updateFromSource()
+            }
+        }
+        
         needsDisplay = true
         NotificationCenter.default.post(
             name: NSNotification.Name("CanvasNeedsDisplay"),
             object: self
         )
+    }
+    
+    // Update shadow layer when properties change
+    func updateShadowForLayer(_ layer: any Layer) {
+        // Find the shadow layer for this source layer
+        if let shadowLayer = layers.first(where: { ($0 as? ShadowLayer)?.sourceLayer === layer }) as? ShadowLayer {
+            if layer.dropShadow.isEnabled {
+                // Update shadow properties
+                shadowLayer.shadowOffset = layer.dropShadow.offset
+                shadowLayer.shadowBlur = layer.dropShadow.blur
+                shadowLayer.shadowColor = layer.dropShadow.color
+                shadowLayer.opacity = layer.dropShadow.opacity
+                shadowLayer.updateFromSource()
+            } else {
+                // Remove shadow layer if disabled
+                removeLayer(shadowLayer)
+            }
+        } else if layer.dropShadow.isEnabled {
+            // Add shadow layer if it doesn't exist
+            if let index = layers.firstIndex(where: { $0.id == layer.id }) {
+                let shadowLayer = ShadowLayer(sourceLayer: layer)
+                shadowLayer.shadowOffset = layer.dropShadow.offset
+                shadowLayer.shadowBlur = layer.dropShadow.blur
+                shadowLayer.shadowColor = layer.dropShadow.color
+                shadowLayer.opacity = layer.dropShadow.opacity
+                shadowLayer.updateFromSource()
+                layers.insert(shadowLayer, at: index)
+                updateZIndices()
+            }
+        }
+        setNeedsDisplay()
     }
 }
 

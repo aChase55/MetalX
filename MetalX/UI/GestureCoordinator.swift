@@ -66,8 +66,13 @@ class GestureCoordinator: NSObject {
         
         let location = gesture.location(in: metalView)
         
-        // Hit test layers from top to bottom
+        // Hit test layers from top to bottom, skipping shadow layers
         for layer in canvas.layers.reversed() {
+            // Skip shadow layers - they're not interactive
+            if layer is ShadowLayer {
+                continue
+            }
+            
             if layer.hitTest(point: location) {
                 canvas.selectLayer(layer)
                 canvas.needsDisplay = true
@@ -90,6 +95,11 @@ class GestureCoordinator: NSObject {
         if canvas.selectedLayer == nil && gesture.state == .began {
             let location = gesture.location(in: metalView)
             for layer in canvas.layers.reversed() {
+                // Skip shadow layers - they're not interactive
+                if layer is ShadowLayer {
+                    continue
+                }
+                
                 if layer.hitTest(point: location) {
                     canvas.selectLayer(layer)
                     break
@@ -257,6 +267,11 @@ extension GestureCoordinator: UIGestureRecognizerDelegate {
                     // Check if we'll hit a layer with tap location
                     let location = gestureRecognizer.location(in: metalView)
                     for layer in canvas.layers.reversed() {
+                        // Skip shadow layers - they're not interactive
+                        if layer is ShadowLayer {
+                            continue
+                        }
+                        
                         if layer.hitTest(point: location) {
                             return true // Will select this layer
                         }
