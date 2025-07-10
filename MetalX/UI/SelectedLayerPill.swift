@@ -27,9 +27,8 @@ struct SelectedLayerPill: View {
         if let layer = selectedLayer {
             // Debug: Layer selected - \(layer.name)
             VStack(spacing: 0) {
-                // Layer info and tabs
+                // Layer info row
                 HStack(spacing: 16) {
-                    // Layer info
                     VStack(alignment: .leading, spacing: 2) {
                         Text(layer.name)
                             .font(.system(size: 14, weight: .medium))
@@ -42,31 +41,6 @@ struct SelectedLayerPill: View {
                     
                     Spacer()
                     
-                    // Property tabs
-                    HStack(spacing: 8) {
-                        ForEach(LayerPropertyTab.allCases, id: \.self) { tab in
-                            Button(action: {
-                                selectedTab = tab
-                                showingPropertySheet = true
-                                print("Selected tab: \(tab.rawValue)")
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: tab.systemImage)
-                                        .font(.system(size: 16))
-                                    Text(tab.rawValue)
-                                        .font(.system(size: 10, weight: .medium))
-                                }
-                                .foregroundColor(selectedTab == tab ? .white : .primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(selectedTab == tab ? Color.blue : Color.clear)
-                                )
-                            }
-                        }
-                    }
-                    
                     // Close button
                     Button(action: {
                         canvas.selectLayer(nil)
@@ -77,7 +51,34 @@ struct SelectedLayerPill: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.top, 12)
+                
+                // Property tabs row
+                HStack(spacing: 0) {
+                    ForEach(LayerPropertyTab.allCases, id: \.self) { tab in
+                        Button(action: {
+                            selectedTab = tab
+                            showingPropertySheet = true
+                            print("Selected tab: \(tab.rawValue)")
+                        }) {
+                            VStack(spacing: 4) {
+                                Image(systemName: tab.systemImage)
+                                    .font(.system(size: 16))
+                                Text(tab.rawValue)
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundColor(selectedTab == tab ? .white : .primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(selectedTab == tab ? Color.blue : Color.clear)
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)

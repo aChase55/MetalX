@@ -144,16 +144,14 @@ struct ShapePropertiesView: View {
                                 )
                         }
                         
+                        // Inline PhotosPicker
                         PhotosPicker(
                             selection: $selectedPhotoItem,
-                            matching: .images,
-                            photoLibrary: .shared()
+                            matching: .images
                         ) {
-                            Label(selectedFillImage == nil ? "Select Image" : "Change Image", 
-                                  systemImage: "photo.badge.plus")
-                                .frame(maxWidth: .infinity)
+                            EmptyView()
                         }
-                        .buttonStyle(.bordered)
+                        .frame(height: 120)
                         .onChange(of: selectedPhotoItem) { _, newItem in
                             Task {
                                 if let newItem = newItem,

@@ -85,6 +85,7 @@ struct BoundedCanvasView: UIViewRepresentable {
         private var commandQueue: MTLCommandQueue?
         private var quadRenderer: QuadRenderer?
         private var advancedBlendRenderer: AdvancedBlendRenderer?
+        private var shadowRenderer: ShadowRenderer?
         private var accumulationTexture: MTLTexture?
         private var tempTexture: MTLTexture?
         
@@ -152,6 +153,13 @@ struct BoundedCanvasView: UIViewRepresentable {
             quadRenderer = QuadRenderer(device: device)
             advancedBlendRenderer = AdvancedBlendRenderer(device: device)
             commandQueue = device.makeCommandQueue()
+            
+            // Initialize shadow renderer
+            do {
+                shadowRenderer = try ShadowRenderer(device: device)
+            } catch {
+                print("Failed to create shadow renderer: \(error)")
+            }
             
             // Initialize shared Metal resources to prevent memory leaks
             do {
@@ -473,7 +481,8 @@ struct BoundedCanvasView: UIViewRepresentable {
         private func renderWithAdvancedBlending(drawable: CAMetalDrawable, descriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) {
             guard let accumulationTexture = accumulationTexture,
                   let tempTexture = tempTexture,
-                  let advancedBlendRenderer = advancedBlendRenderer else {
+                  let advancedBlendRenderer = advancedBlendRenderer,
+                  let metalView = metalView else {
                 // Fall back to simple rendering if textures not ready
                 guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
                 for layer in canvas.layers where layer.isVisible {
@@ -485,6 +494,8 @@ struct BoundedCanvasView: UIViewRepresentable {
                 encoder.endEncoding()
                 return
             }
+            
+            let drawableSize = metalView.drawableSize
             
             
             // Clear accumulation texture
@@ -519,6 +530,20 @@ struct BoundedCanvasView: UIViewRepresentable {
                         destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
                     )
                     blitEncoder.endEncoding()
+                }
+                
+                // Render shadow first if enabled
+                if layer.dropShadow.isEnabled, let shadowRenderer = shadowRenderer {
+                    let transform = calculateTransformMatrix(for: layer)
+                    shadowRenderer.renderShadow(
+                        layerTexture: layerTexture,
+                        targetTexture: targetTexture,
+                        commandBuffer: commandBuffer,
+                        dropShadow: layer.dropShadow,
+                        transform: transform,
+                        viewportSize: drawableSize,
+                        layerBounds: layer.bounds
+                    )
                 }
                 
                 // Always use advanced blend renderer for consistent coordinate system

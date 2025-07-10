@@ -38,3 +38,37 @@ fragment float4 simpleFragment(VertexOut in [[stage_in]],
     
     return color;
 }
+
+// Simple shadow fragment shader
+struct SimpleShadowFragmentUniforms {
+    float4 shadowColor;
+    float shadowOpacity;
+    float3 padding; // For alignment
+};
+
+fragment float4 simpleShadowFragment(VertexOut in [[stage_in]],
+                                     texture2d<float> texture [[texture(0)]],
+                                     sampler textureSampler [[sampler(0)]],
+                                     constant SimpleShadowFragmentUniforms& uniforms [[buffer(1)]]) {
+    // Sample the texture to get the alpha channel
+    float4 texColor = texture.sample(textureSampler, in.texCoord);
+    
+    // Use the texture's alpha to determine shadow opacity
+    float shadowAlpha = texColor.a * uniforms.shadowOpacity;
+    
+    // Create shadow color with proper alpha
+    float4 shadowColor = uniforms.shadowColor;
+    shadowColor.a *= shadowAlpha;
+    
+    // Premultiply alpha for proper blending
+    shadowColor.rgb *= shadowColor.a;
+    
+    return shadowColor;
+}
+
+// Simple pass-through fragment shader (no opacity modification)
+fragment float4 simplePassthroughFragment(VertexOut in [[stage_in]],
+                                         texture2d<float> texture [[texture(0)]]) {
+    constexpr sampler textureSampler(filter::linear, address::clamp_to_edge);
+    return texture.sample(textureSampler, in.texCoord);
+}
