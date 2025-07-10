@@ -93,6 +93,59 @@ class Canvas: ObservableObject {
         }
     }
     
+    // Move layer up/down
+    func moveLayerUp(_ layer: any Layer) {
+        guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return }
+        
+        // Skip shadow layers when finding the next position
+        var targetIndex = index + 1
+        while targetIndex < layers.count && layers[targetIndex] is ShadowLayer {
+            targetIndex += 1
+        }
+        
+        if targetIndex < layers.count {
+            moveLayer(layer, to: targetIndex)
+        }
+    }
+    
+    func moveLayerDown(_ layer: any Layer) {
+        guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return }
+        
+        // Skip shadow layers when finding the previous position
+        var targetIndex = index - 1
+        while targetIndex >= 0 && layers[targetIndex] is ShadowLayer {
+            targetIndex -= 1
+        }
+        
+        if targetIndex >= 0 {
+            moveLayer(layer, to: targetIndex)
+        }
+    }
+    
+    func canMoveLayerUp(_ layer: any Layer) -> Bool {
+        guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return false }
+        
+        // Check if there's a non-shadow layer above this one
+        for i in (index + 1)..<layers.count {
+            if !(layers[i] is ShadowLayer) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func canMoveLayerDown(_ layer: any Layer) -> Bool {
+        guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return false }
+        
+        // Check if there's a non-shadow layer below this one
+        for i in (0..<index).reversed() {
+            if !(layers[i] is ShadowLayer) {
+                return true
+            }
+        }
+        return false
+    }
+    
     // Clear canvas
     func clear() {
         layers.removeAll()

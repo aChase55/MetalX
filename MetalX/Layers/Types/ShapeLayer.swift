@@ -305,7 +305,7 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         // For vector quality, render at a resolution based on the current scale
         // This ensures shapes stay sharp when scaled up
         let baseScale: CGFloat = 2.0 // Base quality multiplier
-        let currentScale = CGFloat(transform.scale)
+        let currentScale = transform.scale
         
         // Ensure minimum quality for small shapes
         let minDimension = min(bounds.width, bounds.height)
@@ -348,7 +348,7 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
                 height: textureHeight,
                 mipmapped: true
             )
-            descriptor.usage = [.renderTarget, .shaderRead]
+            descriptor.usage = [MTLTextureUsage.renderTarget, MTLTextureUsage.shaderRead]
             texture = device.makeTexture(descriptor: descriptor)
         }
         

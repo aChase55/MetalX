@@ -18,6 +18,8 @@ struct LayerTransform {
     var position: CGPoint = .zero
     var scale: CGFloat = 1.0
     var rotation: CGFloat = 0.0
+    var flipHorizontal: Bool = false
+    var flipVertical: Bool = false
     
     // Convert to matrix for Metal shader
     var matrix: float4x4 {
@@ -37,10 +39,12 @@ struct LayerTransform {
             SIMD4<Float>(0, 0, 0, 1)
         )
         
-        // Apply scale
+        // Apply scale with flips
+        let scaleX = Float(scale) * (flipHorizontal ? -1.0 : 1.0)
+        let scaleY = Float(scale) * (flipVertical ? -1.0 : 1.0)
         let scaleMatrix = float4x4(
-            SIMD4<Float>(Float(scale), 0, 0, 0),
-            SIMD4<Float>(0, Float(scale), 0, 0),
+            SIMD4<Float>(scaleX, 0, 0, 0),
+            SIMD4<Float>(0, scaleY, 0, 0),
             SIMD4<Float>(0, 0, 1, 0),
             SIMD4<Float>(0, 0, 0, 1)
         )

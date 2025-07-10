@@ -66,6 +66,30 @@ struct LayerTransformData: Codable, Hashable, Equatable {
     var position: CGPoint
     var scale: CGFloat
     var rotation: CGFloat
+    var flipHorizontal: Bool
+    var flipVertical: Bool
+    
+    // Custom decoder for backward compatibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        position = try container.decode(CGPoint.self, forKey: .position)
+        scale = try container.decode(CGFloat.self, forKey: .scale)
+        rotation = try container.decode(CGFloat.self, forKey: .rotation)
+        flipHorizontal = try container.decodeIfPresent(Bool.self, forKey: .flipHorizontal) ?? false
+        flipVertical = try container.decodeIfPresent(Bool.self, forKey: .flipVertical) ?? false
+    }
+    
+    init(position: CGPoint, scale: CGFloat, rotation: CGFloat, flipHorizontal: Bool = false, flipVertical: Bool = false) {
+        self.position = position
+        self.scale = scale
+        self.rotation = rotation
+        self.flipHorizontal = flipHorizontal
+        self.flipVertical = flipVertical
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case position, scale, rotation, flipHorizontal, flipVertical
+    }
 }
 
 struct ImageLayerData: Codable, Hashable, Equatable {
@@ -171,11 +195,14 @@ class ProjectListModel: ObservableObject {
             ).filter { $0.pathExtension == "metalx" }
             
             projects = projectURLs.compactMap { url in
-                guard let data = try? Data(contentsOf: url),
-                      let project = try? JSONDecoder().decode(MetalXProject.self, from: data) else {
+                do {
+                    let data = try Data(contentsOf: url)
+                    let project = try JSONDecoder().decode(MetalXProject.self, from: data)
+                    return project
+                } catch {
+                    print("Error loading project from \(url.lastPathComponent): \(error)")
                     return nil
                 }
-                return project
             }.sorted { $0.modifiedDate > $1.modifiedDate }
         } catch {
             print("Error loading projects: \(error)")

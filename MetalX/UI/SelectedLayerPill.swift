@@ -6,12 +6,14 @@ struct SelectedLayerPill: View {
     @State private var showingPropertySheet = false
     
     enum LayerPropertyTab: String, CaseIterable {
+        case position = "Position"
         case fill = "Fill"
         case blend = "Blend"
         case shadow = "Shadow"
         
         var systemImage: String {
             switch self {
+            case .position: return "move"
             case .fill: return "paintbrush.fill"
             case .blend: return "rectangle.stack"
             case .shadow: return "shadow"
@@ -114,6 +116,8 @@ struct LayerPropertySheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 if let layer = selectedLayer {
                     switch selectedTab {
+                    case .position:
+                        positionControls(for: layer)
                     case .fill:
                         fillControls(for: layer)
                     case .blend:
@@ -136,6 +140,251 @@ struct LayerPropertySheet: View {
                 }
             }
         }
+    }
+    
+    @ViewBuilder
+    private func positionControls(for layer: any Layer) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Position controls with nudge buttons
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Position")
+                    .font(.headline)
+                
+                // X Position
+                HStack {
+                    Text("X:")
+                        .frame(width: 20)
+                    
+                    Button(action: {
+                        layer.transform.position.x -= 1
+                        canvas.setNeedsDisplay()
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Text(String(format: "%.0f", layer.transform.position.x))
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 60)
+                    
+                    Button(action: {
+                        layer.transform.position.x += 1
+                        canvas.setNeedsDisplay()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Spacer()
+                }
+                
+                // Y Position
+                HStack {
+                    Text("Y:")
+                        .frame(width: 20)
+                    
+                    Button(action: {
+                        layer.transform.position.y -= 1
+                        canvas.setNeedsDisplay()
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Text(String(format: "%.0f", layer.transform.position.y))
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 60)
+                    
+                    Button(action: {
+                        layer.transform.position.y += 1
+                        canvas.setNeedsDisplay()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            Divider()
+            
+            // Transform controls
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Transform")
+                    .font(.headline)
+                
+                HStack(spacing: 16) {
+                    // Flip Horizontal
+                    Button(action: {
+                        layer.transform.flipHorizontal.toggle()
+                        canvas.setNeedsDisplay()
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "arrow.left.and.right")
+                                .font(.system(size: 20))
+                            Text("Flip H")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                    
+                    // Flip Vertical
+                    Button(action: {
+                        layer.transform.flipVertical.toggle()
+                        canvas.setNeedsDisplay()
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "arrow.up.and.down")
+                                .font(.system(size: 20))
+                            Text("Flip V")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+            }
+            
+            Divider()
+            
+            // Layer actions
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Layer Actions")
+                    .font(.headline)
+                
+                HStack(spacing: 16) {
+                    // Duplicate
+                    Button(action: {
+                        duplicateLayer(layer)
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 20))
+                            Text("Duplicate")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.green.opacity(0.1))
+                    )
+                    
+                    // Move Up
+                    Button(action: {
+                        canvas.moveLayerUp(layer)
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "arrow.up.square")
+                                .font(.system(size: 20))
+                            Text("Move Up")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                    .disabled(!canvas.canMoveLayerUp(layer))
+                    
+                    // Move Down
+                    Button(action: {
+                        canvas.moveLayerDown(layer)
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "arrow.down.square")
+                                .font(.system(size: 20))
+                            Text("Move Down")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                    .disabled(!canvas.canMoveLayerDown(layer))
+                }
+                
+                // Delete button
+                Button(action: {
+                    deleteLayer(layer)
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                        Text("Delete Layer")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.red)
+                    )
+                }
+            }
+        }
+    }
+    
+    private func duplicateLayer(_ layer: any Layer) {
+        // Create a copy of the layer
+        var newLayer: (any Layer)?
+        
+        if let imageLayer = layer as? ImageLayer {
+            let copy = ImageLayer()
+            copy.texture = imageLayer.texture
+            copy.name = "\(imageLayer.name) Copy"
+            newLayer = copy
+        } else if let shapeLayer = layer as? VectorShapeLayer {
+            let copy = VectorShapeLayer()
+            copy.path = shapeLayer.path
+            copy.fillType = shapeLayer.fillType
+            copy.strokeColor = shapeLayer.strokeColor
+            copy.strokeWidth = shapeLayer.strokeWidth
+            copy.name = "\(shapeLayer.name) Copy"
+            copy.bounds = shapeLayer.bounds
+            newLayer = copy
+        } else if let textLayer = layer as? TextLayer {
+            let copy = TextLayer(text: textLayer.text)
+            copy.font = textLayer.font
+            copy.textColor = textLayer.textColor
+            copy.name = "\(textLayer.name) Copy"
+            newLayer = copy
+        }
+        
+        if let newLayer = newLayer {
+            // Copy common properties
+            newLayer.transform = layer.transform
+            newLayer.transform.position = CGPoint(x: layer.transform.position.x + 20, y: layer.transform.position.y + 20)
+            newLayer.opacity = layer.opacity
+            newLayer.blendMode = layer.blendMode
+            newLayer.dropShadow = layer.dropShadow
+            
+            // Add to canvas
+            canvas.addLayer(newLayer)
+            canvas.selectLayer(newLayer)
+        }
+    }
+    
+    private func deleteLayer(_ layer: any Layer) {
+        canvas.removeLayer(layer)
+        dismiss()
     }
     
     @ViewBuilder

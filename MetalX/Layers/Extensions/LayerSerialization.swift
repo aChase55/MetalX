@@ -13,7 +13,9 @@ extension Layer {
             transform: LayerTransformData(
                 position: transform.position,
                 scale: transform.scale,
-                rotation: transform.rotation
+                rotation: transform.rotation,
+                flipHorizontal: transform.flipHorizontal,
+                flipVertical: transform.flipVertical
             ),
             opacity: opacity,
             isVisible: isVisible,
@@ -324,6 +326,8 @@ class LayerFactory {
         layer.transform.position = data.transform.position
         layer.transform.scale = data.transform.scale
         layer.transform.rotation = data.transform.rotation
+        layer.transform.flipHorizontal = data.transform.flipHorizontal
+        layer.transform.flipVertical = data.transform.flipVertical
         layer.opacity = data.opacity
         layer.isVisible = data.isVisible
         layer.isLocked = data.isLocked

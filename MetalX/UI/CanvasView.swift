@@ -367,13 +367,17 @@ struct CanvasView: UIViewRepresentable {
             let cos_r = cos(angle)
             let sin_r = sin(angle)
             
-            // Build the complete transform
-            // Note: We build this carefully to avoid skewing
-            matrix.columns.0.x = cos_r * halfWidth * pixelToNDC.x
-            matrix.columns.0.y = sin_r * halfWidth * pixelToNDC.y
+            // Apply flips by negating scale
+            let scaleX: Float = transform.flipHorizontal ? -1.0 : 1.0
+            let scaleY: Float = transform.flipVertical ? -1.0 : 1.0
             
-            matrix.columns.1.x = -sin_r * halfHeight * pixelToNDC.x
-            matrix.columns.1.y = cos_r * halfHeight * pixelToNDC.y
+            // Build the complete transform with flips
+            // Note: We build this carefully to avoid skewing
+            matrix.columns.0.x = cos_r * halfWidth * pixelToNDC.x * scaleX
+            matrix.columns.0.y = sin_r * halfWidth * pixelToNDC.y * scaleX
+            
+            matrix.columns.1.x = -sin_r * halfHeight * pixelToNDC.x * scaleY
+            matrix.columns.1.y = cos_r * halfHeight * pixelToNDC.y * scaleY
             
             // Translation (convert from screen center to NDC)
             matrix.columns.3.x = (centerX - Float(canvasSize.width) * 0.5) * pixelToNDC.x
