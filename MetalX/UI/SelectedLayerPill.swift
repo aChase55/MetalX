@@ -238,7 +238,7 @@ struct LayerPropertySheet: View {
                                 layer.dropShadow.offset.width = newX
                                 canvas.updateShadowForLayer(layer)
                             }
-                        ), in: -20...20)
+                        ), in: -50...50)
                         Text("\(Int(layer.dropShadow.offset.width))pt")
                             .font(.caption)
                             .monospacedDigit()
@@ -253,7 +253,7 @@ struct LayerPropertySheet: View {
                                 layer.dropShadow.offset.height = newY
                                 canvas.updateShadowForLayer(layer)
                             }
-                        ), in: -20...20)
+                        ), in: -50...50)
                         Text("\(Int(layer.dropShadow.offset.height))pt")
                             .font(.caption)
                             .monospacedDigit()
@@ -279,7 +279,29 @@ struct LayerPropertySheet: View {
                             layer.dropShadow.blur = newBlur
                             canvas.updateShadowForLayer(layer)
                         }
-                    ), in: 0...50)
+                    ), in: 0...100)
+                    .accentColor(.blue)
+                }
+                
+                // Shadow Scale
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Shadow Scale")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(String(format: "%.1fx", layer.dropShadow.scale))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Slider(value: Binding(
+                        get: { layer.dropShadow.scale },
+                        set: { newScale in
+                            layer.dropShadow.scale = newScale
+                            canvas.updateShadowForLayer(layer)
+                        }
+                    ), in: 0.5...2.0)
                     .accentColor(.blue)
                 }
                 

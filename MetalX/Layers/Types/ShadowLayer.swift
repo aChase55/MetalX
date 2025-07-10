@@ -34,7 +34,7 @@ class ShadowLayer: BaseLayer {
         
         // Calculate padding needed for blur - fixed padding regardless of blur amount
         // This ensures the shadow size stays constant
-        let maxBlurPadding = 100 // Maximum padding for any blur amount
+        let maxBlurPadding = 150 // Maximum padding for any blur amount (supports up to 100pt blur)
         
         // Create texture for shadow with fixed padding
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
@@ -110,7 +110,8 @@ class ShadowLayer: BaseLayer {
             x: sourceLayer.transform.position.x + shadowOffset.width,
             y: sourceLayer.transform.position.y + shadowOffset.height
         )
-        self.transform.scale = sourceLayer.transform.scale
+        // Apply both source layer scale and shadow scale
+        self.transform.scale = sourceLayer.transform.scale * sourceLayer.dropShadow.scale
         self.transform.rotation = sourceLayer.transform.rotation
         
         // Update bounds with minimal expansion

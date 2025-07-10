@@ -10,6 +10,7 @@ struct DropShadow {
     var blur: CGFloat = 4.0
     var color: CGColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.5)
     var opacity: Float = 1.0
+    var scale: CGFloat = 1.0  // Scale the shadow size while keeping it centered
 }
 
 // Layer-specific transform structure

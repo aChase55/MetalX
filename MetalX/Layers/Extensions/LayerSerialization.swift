@@ -25,7 +25,8 @@ extension Layer {
                 offset: dropShadow.offset,
                 blur: dropShadow.blur,
                 color: CodableColor(cgColor: dropShadow.color),
-                opacity: dropShadow.opacity
+                opacity: dropShadow.opacity,
+                scale: dropShadow.scale
             ) : nil
         )
         
@@ -335,7 +336,8 @@ class LayerFactory {
                 offset: shadowData.offset,
                 blur: shadowData.blur,
                 color: shadowData.color.cgColor,
-                opacity: shadowData.opacity
+                opacity: shadowData.opacity,
+                scale: shadowData.scale
             )
         }
     }

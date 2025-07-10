@@ -59,6 +59,7 @@ struct DropShadowData: Codable, Hashable, Equatable {
     var blur: CGFloat
     var color: CodableColor
     var opacity: Float
+    var scale: CGFloat = 1.0
 }
 
 struct LayerTransformData: Codable, Hashable, Equatable {

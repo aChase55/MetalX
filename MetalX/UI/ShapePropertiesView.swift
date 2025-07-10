@@ -233,11 +233,27 @@ struct ShapePropertiesView: View {
                                     shape.dropShadow.blur = $0
                                     canvas.updateShadowForLayer(shape)
                                 }
-                            ), in: 0...50)
+                            ), in: 0...100)
                             Text("\(Int(shape.dropShadow.blur))")
                                 .font(.caption)
                                 .monospacedDigit()
                                 .frame(width: 30)
+                        }
+                        
+                        // Shadow scale
+                        HStack {
+                            Text("Scale")
+                            Slider(value: Binding(
+                                get: { shape.dropShadow.scale },
+                                set: { 
+                                    shape.dropShadow.scale = $0
+                                    canvas.updateShadowForLayer(shape)
+                                }
+                            ), in: 0.5...2.0)
+                            Text(String(format: "%.1fx", shape.dropShadow.scale))
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 40)
                         }
                         
                         // Shadow opacity
