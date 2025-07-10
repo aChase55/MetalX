@@ -28,6 +28,9 @@ struct CanvasView: UIViewRepresentable {
         // Add gesture recognizers
         context.coordinator.setupGestures(for: mtkView)
         
+        // Trigger initial render
+        mtkView.setNeedsDisplay()
+        
         return mtkView
     }
     
@@ -76,6 +79,9 @@ struct CanvasView: UIViewRepresentable {
             commandQueue = device?.makeCommandQueue()
             if let device = device {
                 quadRenderer = QuadRenderer(device: device)
+                print("CanvasView: Metal setup complete - device: \(device.name)")
+            } else {
+                print("CanvasView: Failed to create Metal device")
             }
         }
         
@@ -264,10 +270,16 @@ struct CanvasView: UIViewRepresentable {
         
         func draw(in view: MTKView) {
             // Only render if canvas needs display
-            guard canvas.needsDisplay else { return }
+            guard canvas.needsDisplay else { 
+                print("Canvas doesn't need display, skipping render")
+                return 
+            }
             
             guard let drawable = view.currentDrawable,
-                  let descriptor = view.currentRenderPassDescriptor else { return }
+                  let descriptor = view.currentRenderPassDescriptor else { 
+                print("Failed to get drawable or descriptor")
+                return 
+            }
             
             guard let commandBuffer = commandQueue?.makeCommandBuffer() else { return }
             guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }

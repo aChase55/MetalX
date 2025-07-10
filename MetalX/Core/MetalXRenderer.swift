@@ -221,9 +221,40 @@ class MetalXRenderer {
     }
     
     private func renderLayer(_ layer: any Layer, encoder: MTLRenderCommandEncoder, canvasSize: CGSize) {
-        guard let texture = getLayerTexture(layer) else { return }
+        guard let texture = getLayerTexture(layer) else { 
+            print("MetalXRenderer: No texture for layer: \(layer.name)")
+            return 
+        }
+        
+        print("MetalXRenderer: Got texture \(texture.width)x\(texture.height) for layer: \(layer.name)")
         
         let transform = calculateTransformMatrix(for: layer, canvasSize: canvasSize)
+        quadRenderer?.render(
+            encoder: encoder,
+            texture: texture,
+            transform: transform,
+            opacity: layer.opacity,
+            blendMode: layer.blendMode
+        )
+    }
+    
+    private func renderLayerForExport(_ layer: any Layer, encoder: MTLRenderCommandEncoder, canvasSize: CGSize, exportSize: CGSize, scale: CGFloat) {
+        guard let texture = getLayerTexture(layer) else { 
+            print("MetalXRenderer: No texture for layer: \(layer.name)")
+            return 
+        }
+        
+        print("MetalXRenderer: Got texture \(texture.width)x\(texture.height) for layer: \(layer.name)")
+        
+        // Create a scaled transform for export
+        var scaledTransform = layer.transform
+        scaledTransform.position = CGPoint(
+            x: layer.transform.position.x * scale,
+            y: layer.transform.position.y * scale
+        )
+        scaledTransform.scale = layer.transform.scale * scale
+        
+        let transform = calculateTransformMatrix(for: scaledTransform, layerSize: layer.bounds.size, canvasSize: exportSize)
         quadRenderer?.render(
             encoder: encoder,
             texture: texture,
@@ -308,5 +339,112 @@ class MetalXRenderer {
         matrix.columns.3.y = (centerY - Float(canvasSize.height) * 0.5) * pixelToNDC.y
         
         return matrix
+    }
+    
+    // MARK: - Offscreen Rendering for Export
+    
+    func renderToTexture(canvas: Canvas, size: CGSize) -> MTLTexture? {
+        guard size.width > 0, size.height > 0 else { 
+            print("MetalXRenderer: Invalid size for texture: \(size)")
+            return nil 
+        }
+        
+        print("MetalXRenderer: Creating texture with size: \(size)")
+        
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm,
+            width: Int(size.width),
+            height: Int(size.height),
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .renderTarget]
+        descriptor.storageMode = .shared
+        
+        guard let texture = device.makeTexture(descriptor: descriptor),
+              let commandBuffer = commandQueue?.makeCommandBuffer() else { 
+            print("MetalXRenderer: Failed to create texture or command buffer")
+            return nil 
+        }
+        
+        // Create render pass descriptor
+        let renderPassDescriptor = MTLRenderPassDescriptor()
+        renderPassDescriptor.colorAttachments[0].texture = texture
+        renderPassDescriptor.colorAttachments[0].loadAction = .clear
+        // Use white background for export/preview
+        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(
+            red: 1.0,
+            green: 1.0,
+            blue: 1.0,
+            alpha: 1.0
+        )
+        renderPassDescriptor.colorAttachments[0].storeAction = .store
+        
+        // Calculate scale factor for export
+        let scaleX = size.width / canvas.size.width
+        let scaleY = size.height / canvas.size.height
+        let scale = min(scaleX, scaleY) // Maintain aspect ratio
+        
+        // Render all visible layers
+        if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
+            print("MetalXRenderer: Rendering \(canvas.layers.filter { $0.isVisible }.count) visible layers")
+            print("MetalXRenderer: Canvas size: \(canvas.size), Export size: \(size), Scale: \(scale)")
+            
+            for layer in canvas.layers where layer.isVisible {
+                print("MetalXRenderer: Rendering layer: \(layer.name) at position: \(layer.transform.position)")
+                renderLayerForExport(layer, encoder: encoder, canvasSize: canvas.size, exportSize: size, scale: scale)
+            }
+            encoder.endEncoding()
+        } else {
+            print("MetalXRenderer: Failed to create render encoder")
+        }
+        
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        
+        return texture
+    }
+    
+    func renderToUIImage(canvas: Canvas, size: CGSize) -> UIImage? {
+        print("MetalXRenderer: renderToUIImage called with size: \(size), canvas has \(canvas.layers.count) layers")
+        guard let texture = renderToTexture(canvas: canvas, size: size) else { 
+            print("MetalXRenderer: Failed to render to texture")
+            return nil 
+        }
+        
+        let width = texture.width
+        let height = texture.height
+        let bytesPerRow = width * 4
+        let dataSize = bytesPerRow * height
+        
+        var imageBytes = [UInt8](repeating: 0, count: dataSize)
+        texture.getBytes(&imageBytes,
+                        bytesPerRow: bytesPerRow,
+                        from: MTLRegion(origin: MTLOrigin(x: 0, y: 0, z: 0),
+                                       size: MTLSize(width: width, height: height, depth: 1)),
+                        mipmapLevel: 0)
+        
+        // Convert BGRA to RGBA
+        for i in stride(from: 0, to: imageBytes.count, by: 4) {
+            imageBytes.swapAt(i, i + 2)
+        }
+        
+        // Create CGImage
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        
+        guard let dataProvider = CGDataProvider(data: Data(imageBytes) as CFData),
+              let cgImage = CGImage(width: width,
+                                  height: height,
+                                  bitsPerComponent: 8,
+                                  bitsPerPixel: 32,
+                                  bytesPerRow: bytesPerRow,
+                                  space: colorSpace,
+                                  bitmapInfo: bitmapInfo,
+                                  provider: dataProvider,
+                                  decode: nil,
+                                  shouldInterpolate: true,
+                                  intent: .defaultIntent) else { return nil }
+        
+        return UIImage(cgImage: cgImage)
     }
 }

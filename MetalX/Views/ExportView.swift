@@ -23,23 +23,16 @@ struct ExportView: View {
                     Text("Preview")
                         .font(.headline)
                     
-                    GeometryReader { geometry in
-                        let scale = min(
-                            geometry.size.width / canvas.size.width,
-                            geometry.size.height / canvas.size.height
-                        ) * 0.9
-                        
+                    ZStack {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color(UIColor.systemGray6))
-                            .frame(
-                                width: canvas.size.width * scale,
-                                height: canvas.size.height * scale
-                            )
-                            .overlay(
-                                Text("Canvas Preview")
-                                    .foregroundColor(.secondary)
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        CanvasPreviewView(
+                            canvas: canvas,
+                            previewSize: CGSize(width: 300, height: 300) // Fixed size for now
+                        )
+                        .aspectRatio(canvas.size, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .frame(height: 300)
                 }
@@ -131,41 +124,49 @@ struct ExportView: View {
         isExporting = true
         exportProgress = 0.0
         
-        // Simulate export progress
-        // In real implementation, this would render the canvas at high resolution
-        for i in 0...10 {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        // Setup Metal renderer
+        guard let device = MTLCreateSystemDefaultDevice() else {
             await MainActor.run {
-                exportProgress = Double(i) / 10.0
+                isExporting = false
             }
+            return
         }
         
-        // TODO: Actual canvas rendering at export resolution
-        // For now, create a placeholder image
-        await MainActor.run {
-            let renderer = UIGraphicsImageRenderer(size: exportSize)
-            exportedImage = renderer.image { context in
-                // Draw placeholder - in real implementation, render all layers
-                UIColor.systemGray6.setFill()
-                context.fill(CGRect(origin: .zero, size: exportSize))
-                
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 48),
-                    .foregroundColor: UIColor.systemGray
-                ]
-                let text = "Exported Canvas\n\(Int(exportSize.width)) × \(Int(exportSize.height))"
-                let textSize = text.size(withAttributes: attributes)
-                let textRect = CGRect(
-                    x: (exportSize.width - textSize.width) / 2,
-                    y: (exportSize.height - textSize.height) / 2,
-                    width: textSize.width,
-                    height: textSize.height
-                )
-                text.draw(in: textRect, withAttributes: attributes)
+        let renderer = MetalXRenderer(device: device)
+        renderer.updateDrawableSize(exportSize)
+        
+        // Export in background
+        let image = await Task.detached(priority: .userInitiated) { [exportSize, canvas] in
+            // Update progress
+            await MainActor.run {
+                exportProgress = 0.3
             }
             
-            isExporting = false
-            showingShareSheet = true
+            // Render the canvas at export resolution
+            let exportedImage = await MainActor.run {
+                renderer.renderToUIImage(canvas: canvas, size: exportSize)
+            }
+            
+            // Update progress
+            await MainActor.run {
+                exportProgress = 0.9
+            }
+            
+            return exportedImage
+        }.value
+        
+        await MainActor.run {
+            exportProgress = 1.0
+            exportedImage = image
+            
+            // Small delay to show completion
+            Task {
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+                isExporting = false
+                if exportedImage != nil {
+                    showingShareSheet = true
+                }
+            }
         }
     }
 }
