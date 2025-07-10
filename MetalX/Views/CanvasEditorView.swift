@@ -14,6 +14,7 @@ struct CanvasEditorView: View {
     @State private var showingSidebar = false
     @State private var showingAddMenu = false
     @State private var showingExportView = false
+    @State private var showingStickerPicker = false
     
     // Auto-save timer
     let saveTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
@@ -178,6 +179,10 @@ struct CanvasEditorView: View {
                 onAddTestLayer: {
                     showingAddMenu = false
                     addTestLayer()
+                },
+                onAddSticker: {
+                    showingAddMenu = false
+                    showingStickerPicker = true
                 }
             )
             .presentationDetents([.medium])
@@ -198,6 +203,9 @@ struct CanvasEditorView: View {
         }
         .sheet(isPresented: $showingExportView) {
             ExportView(canvas: canvas, isPresented: $showingExportView)
+        }
+        .sheet(isPresented: $showingStickerPicker) {
+            StickerPickerView(canvas: canvas, isPresented: $showingStickerPicker)
         }
         .onChange(of: selectedItem) { _, newImage in
             Task {
@@ -398,6 +406,7 @@ struct AddContentMenu: View {
     let onAddText: () -> Void
     let onAddShape: (ShapeType) -> Void
     let onAddTestLayer: () -> Void
+    let onAddSticker: () -> Void
     
     var body: some View {
         NavigationStack {
@@ -414,6 +423,10 @@ struct AddContentMenu: View {
                         if selectedItem != nil {
                             onDismiss()
                         }
+                    }
+                    
+                    Button(action: onAddSticker) {
+                        Label("Sticker", systemImage: "face.smiling")
                     }
                     
                     Button(action: onAddText) {
