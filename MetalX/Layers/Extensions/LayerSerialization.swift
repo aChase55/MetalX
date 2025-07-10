@@ -140,7 +140,8 @@ extension VectorShapeLayer {
             strokeColor: strokeCol,
             strokeWidth: strokeWidth,
             size: CGSize(width: bounds.width, height: bounds.height),
-            sides: sides
+            sides: sides,
+            radius: polygonRadius
         )
     }
     
@@ -239,7 +240,8 @@ class LayerFactory {
             layer = VectorShapeLayer.ellipse(size: shapeData.size)
         case "polygon":
             let sides = shapeData.sides ?? 6
-            let radius = min(shapeData.size.width, shapeData.size.height) / 2
+            // Use saved radius if available, otherwise calculate from size
+            let radius = shapeData.radius ?? min(shapeData.size.width, shapeData.size.height) / 2
             layer = VectorShapeLayer.polygon(sides: sides, radius: radius)
         default:
             layer = VectorShapeLayer.rectangle(size: shapeData.size)
@@ -263,6 +265,10 @@ class LayerFactory {
         layer.strokeWidth = shapeData.strokeWidth
         
         applyCommonProperties(to: layer, from: data)
+        
+        // Force re-render at correct resolution after loading
+        layer.invalidateRenderCache()
+        
         return layer
     }
     

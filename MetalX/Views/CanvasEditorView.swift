@@ -366,11 +366,9 @@ struct CanvasEditorView: View {
             shapeLayer = VectorShapeLayer.ellipse(size: CGSize(width: size, height: size))
             shapeLayer.name = "Circle"
         case .triangle:
-            shapeLayer = VectorShapeLayer.polygon(sides: 3, radius: size)
-            shapeLayer.name = "Triangle"
+            shapeLayer = VectorShapeLayer.polygon(sides: 3, radius: size / 2)
         case .hexagon:
-            shapeLayer = VectorShapeLayer.polygon(sides: 6, radius: size)
-            shapeLayer.name = "Hexagon"
+            shapeLayer = VectorShapeLayer.polygon(sides: 6, radius: size / 2)
         }
         
         let colors: [UIColor] = [.systemRed, .systemBlue, .systemGreen, .systemOrange, .systemPurple, .systemTeal]

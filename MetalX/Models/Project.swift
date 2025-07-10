@@ -89,6 +89,7 @@ struct ShapeLayerData: Codable, Hashable, Equatable {
     var strokeWidth: Float
     var size: CGSize
     var sides: Int?  // For polygons
+    var radius: CGFloat?  // For polygons - the original radius
 }
 
 struct GradientSerializationData: Codable, Hashable, Equatable {

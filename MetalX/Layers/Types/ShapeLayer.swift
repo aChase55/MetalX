@@ -13,6 +13,9 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
     
     private var lastRenderScale: CGFloat = 1.0
     
+    // Store original polygon radius for proper serialization
+    var polygonRadius: CGFloat?
+    
     var fillType: FillType? = .solid(UIColor.white.cgColor) {
         didSet {
             updateAppearance()
@@ -122,6 +125,11 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
     
     func clearTexture() {
         texture = nil
+    }
+    
+    func invalidateRenderCache() {
+        texture = nil
+        lastRenderScale = transform.scale  // Update to current scale
     }
     
     override func getBounds(includeEffects: Bool) -> CGRect {
@@ -298,7 +306,12 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         // This ensures shapes stay sharp when scaled up
         let baseScale: CGFloat = 2.0 // Base quality multiplier
         let currentScale = CGFloat(transform.scale)
-        let renderScale = baseScale * min(currentScale, 3.0) // Cap at 3x to prevent excessive memory use
+        
+        // Ensure minimum quality for small shapes
+        let minDimension = min(bounds.width, bounds.height)
+        let qualityBoost = minDimension < 150 ? 1.5 : 1.0  // Boost quality for small shapes
+        
+        let renderScale = baseScale * qualityBoost * min(currentScale, 3.0) // Cap at 3x to prevent excessive memory use
         
         // Render scale: \(renderScale)
         
@@ -318,8 +331,10 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         let requestedWidth = Int(abs(paddedBounds.width) * renderScale)
         let requestedHeight = Int(abs(paddedBounds.height) * renderScale)
         
-        let textureWidth = max(1, min(requestedWidth, maxTextureSize))
-        let textureHeight = max(1, min(requestedHeight, maxTextureSize))
+        // Ensure minimum texture size for quality
+        let minTextureSize = 256
+        let textureWidth = max(minTextureSize, min(requestedWidth, maxTextureSize))
+        let textureHeight = max(minTextureSize, min(requestedHeight, maxTextureSize))
         
         // Texture size: \(textureWidth) x \(textureHeight)
         
@@ -461,7 +476,20 @@ class VectorShapeLayer: BaseLayer, ShapeLayer {
         }
         
         layer.path = path
-        layer.name = "Polygon (\(sides) sides)"
+        // Use specific names for common shapes
+        switch sides {
+        case 3:
+            layer.name = "Triangle"
+        case 4:
+            layer.name = "Square"
+        case 5:
+            layer.name = "Pentagon"
+        case 6:
+            layer.name = "Hexagon"
+        default:
+            layer.name = "Polygon (\(sides) sides)"
+        }
+        layer.polygonRadius = radius  // Store original radius
         return layer
     }
 }
