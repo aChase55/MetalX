@@ -15,8 +15,8 @@ struct Uniforms {
     float4x4 transform;
 };
 
-vertex VertexOut simpleVertex(VertexIn in [[stage_in]],
-                              constant Uniforms& uniforms [[buffer(1)]]) {
+vertex VertexOut quadVertex(VertexIn in [[stage_in]],
+                            constant Uniforms& uniforms [[buffer(1)]]) {
     VertexOut out;
     float4 pos = float4(in.position, 0.0, 1.0);
     out.position = uniforms.transform * pos;
@@ -24,10 +24,10 @@ vertex VertexOut simpleVertex(VertexIn in [[stage_in]],
     return out;
 }
 
-fragment float4 simpleFragment(VertexOut in [[stage_in]],
-                               texture2d<float> texture [[texture(0)]],
-                               sampler textureSampler [[sampler(0)]],
-                               constant float4& fragmentUniforms [[buffer(1)]]) {
+fragment float4 quadFragment(VertexOut in [[stage_in]],
+                             texture2d<float> texture [[texture(0)]],
+                             sampler textureSampler [[sampler(0)]],
+                             constant float4& fragmentUniforms [[buffer(1)]]) {
     float4 color = texture.sample(textureSampler, in.texCoord);
     
     // Apply opacity
@@ -39,17 +39,17 @@ fragment float4 simpleFragment(VertexOut in [[stage_in]],
     return color;
 }
 
-// Simple shadow fragment shader
-struct SimpleShadowFragmentUniforms {
+// Shadow fragment shader
+struct ShadowFragmentUniforms {
     float4 shadowColor;
     float shadowOpacity;
     float3 padding; // For alignment
 };
 
-fragment float4 simpleShadowFragment(VertexOut in [[stage_in]],
-                                     texture2d<float> texture [[texture(0)]],
-                                     sampler textureSampler [[sampler(0)]],
-                                     constant SimpleShadowFragmentUniforms& uniforms [[buffer(1)]]) {
+fragment float4 shadowFragment(VertexOut in [[stage_in]],
+                               texture2d<float> texture [[texture(0)]],
+                               sampler textureSampler [[sampler(0)]],
+                               constant ShadowFragmentUniforms& uniforms [[buffer(1)]]) {
     // Sample the texture to get the alpha channel
     float4 texColor = texture.sample(textureSampler, in.texCoord);
     
@@ -66,9 +66,9 @@ fragment float4 simpleShadowFragment(VertexOut in [[stage_in]],
     return shadowColor;
 }
 
-// Simple pass-through fragment shader (no opacity modification)
-fragment float4 simplePassthroughFragment(VertexOut in [[stage_in]],
-                                         texture2d<float> texture [[texture(0)]]) {
+// Textured quad fragment shader (no opacity modification)
+fragment float4 texturedQuadFragment(VertexOut in [[stage_in]],
+                                     texture2d<float> texture [[texture(0)]]) {
     constexpr sampler textureSampler(filter::linear, address::clamp_to_edge);
     return texture.sample(textureSampler, in.texCoord);
 }

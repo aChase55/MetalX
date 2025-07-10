@@ -2,7 +2,7 @@ import Metal
 import MetalKit
 import simd
 
-// SIMPLE VERSION - Just render a textured quad
+// Quad renderer for textured quads with blend modes
 class QuadRenderer {
     let device: MTLDevice
     var pipelineStates: [BlendMode: MTLRenderPipelineState] = [:]
@@ -19,8 +19,8 @@ class QuadRenderer {
     func setupPipeline() {
         // SIMPLE - No error handling yet, just crash if it fails
         let library = device.makeDefaultLibrary()!
-        let vertexFunction = library.makeFunction(name: "simpleVertex")!
-        let fragmentFunction = library.makeFunction(name: "simpleFragment")!
+        let vertexFunction = library.makeFunction(name: "quadVertex")!
+        let fragmentFunction = library.makeFunction(name: "quadFragment")!
         
         // Setup vertex descriptor once
         let vertexDescriptor = MTLVertexDescriptor()
@@ -40,7 +40,7 @@ class QuadRenderer {
         for blendMode in BlendMode.allCases {
             let descriptor = MTLRenderPipelineDescriptor()
             
-            // For now, use simple fragment shader for all modes
+            // For now, use quad fragment shader for all modes
             // Advanced blend modes would require render-to-texture
             descriptor.vertexFunction = vertexFunction
             descriptor.fragmentFunction = fragmentFunction
@@ -183,7 +183,7 @@ class QuadRenderer {
     }
     
     func setupBuffers() {
-        // Simple quad vertices (fixed texture coordinates)
+        // Quad vertices (fixed texture coordinates)
         let vertices: [Float] = [
             -1.0, -1.0, 0.0, 0.0,  // bottom left
              1.0, -1.0, 1.0, 0.0,  // bottom right

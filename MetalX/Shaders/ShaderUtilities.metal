@@ -324,5 +324,4 @@ static float4 gaussianBlur(texture2d<float> tex, sampler smp, float2 uv, float2 
     return result / totalWeight;
 }
 
-// MARK: - Basic Vertex Shaders
-// NOTE: These are moved to BasicRendering.metal to avoid duplicates
+// MARK: - End of Utilities

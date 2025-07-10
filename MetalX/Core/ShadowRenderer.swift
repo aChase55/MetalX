@@ -60,14 +60,14 @@ class ShadowRenderer {
         
         // Setup shadow composite pipeline
         let compositeDescriptor = MTLRenderPipelineDescriptor()
-        guard let simpleVertex = library.makeFunction(name: "simpleVertex") else {
-            throw ShadowRendererError.functionNotFound("simpleVertex")
+        guard let quadVertex = library.makeFunction(name: "quadVertex") else {
+            throw ShadowRendererError.functionNotFound("quadVertex")
         }
         guard let shadowCompositeFragment = library.makeFunction(name: "shadowComposite") else {
             throw ShadowRendererError.functionNotFound("shadowComposite")
         }
         
-        compositeDescriptor.vertexFunction = simpleVertex
+        compositeDescriptor.vertexFunction = quadVertex
         compositeDescriptor.fragmentFunction = shadowCompositeFragment
         
         // Setup vertex descriptor for composite
@@ -103,7 +103,7 @@ class ShadowRenderer {
     }
     
     private func setupBuffers() {
-        // Simple quad vertices with texture coordinates
+        // Quad vertices with texture coordinates
         let vertices: [Float] = [
             -1.0, -1.0, 0.0, 0.0,  // bottom left
              1.0, -1.0, 1.0, 0.0,  // bottom right
@@ -346,13 +346,13 @@ class ShadowRenderer {
     }
     
     
-    // Helper to create a simple quad pipeline for rendering layer to texture
+    // Helper to create a quad pipeline for rendering layer to texture
     private func createSimpleQuadPipeline() throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
         
-        guard let vertexFunction = library.makeFunction(name: "simpleVertex"),
-              let fragmentFunction = library.makeFunction(name: "simplePassthroughFragment") else {
-            throw ShadowRendererError.functionNotFound("simpleVertex/simplePassthroughFragment")
+        guard let vertexFunction = library.makeFunction(name: "quadVertex"),
+              let fragmentFunction = library.makeFunction(name: "texturedQuadFragment") else {
+            throw ShadowRendererError.functionNotFound("quadVertex/texturedQuadFragment")
         }
         
         descriptor.vertexFunction = vertexFunction
