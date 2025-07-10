@@ -88,6 +88,10 @@ struct BoundedCanvasView: UIViewRepresentable {
         private var accumulationTexture: MTLTexture?
         private var tempTexture: MTLTexture?
         
+        // Shared Metal resources to prevent memory leaks
+        private var sharedMetalDevice: MetalDevice?
+        private var sharedRenderContext: RenderContext?
+        
         // Gesture handling
         private var panStartLocation: CGPoint = .zero
         private var pinchStartScale: CGFloat = 1.0
@@ -148,6 +152,16 @@ struct BoundedCanvasView: UIViewRepresentable {
             quadRenderer = QuadRenderer(device: device)
             advancedBlendRenderer = AdvancedBlendRenderer(device: device)
             commandQueue = device.makeCommandQueue()
+            
+            // Initialize shared Metal resources to prevent memory leaks
+            do {
+                sharedMetalDevice = try MetalDevice(preferredDevice: device)
+                if let metalDevice = sharedMetalDevice {
+                    sharedRenderContext = RenderContext(device: metalDevice)
+                }
+            } catch {
+                print("Failed to create shared Metal device: \(error)")
+            }
             
             // Set initial scroll view state
             selectionChanged()
@@ -433,8 +447,7 @@ struct BoundedCanvasView: UIViewRepresentable {
             } else if let textLayer = layer as? TextLayer {
                 texture = textLayer.texture
             } else if let shapeLayer = layer as? VectorShapeLayer {
-                if let metalDevice = try? MetalDevice(preferredDevice: metalView!.device!) {
-                    let context = RenderContext(device: metalDevice)
+                if let context = sharedRenderContext {
                     texture = shapeLayer.render(context: context)
                 }
             }
@@ -557,8 +570,7 @@ struct BoundedCanvasView: UIViewRepresentable {
             } else if let textLayer = layer as? TextLayer {
                 return textLayer.texture
             } else if let shapeLayer = layer as? VectorShapeLayer {
-                if let metalDevice = try? MetalDevice(preferredDevice: metalView!.device!) {
-                    let context = RenderContext(device: metalDevice)
+                if let context = sharedRenderContext {
                     return shapeLayer.render(context: context)
                 }
             }

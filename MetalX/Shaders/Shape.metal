@@ -264,3 +264,21 @@ fragment float4 shapeStroke(ShapeVertexOut in [[stage_in]],
     
     return strokeColor;
 }
+
+// Image/pattern fill
+fragment float4 shapeImageFill(ShapeVertexOut in [[stage_in]],
+                               constant ShapeUniforms& uniforms [[buffer(0)]],
+                               texture2d<float> imageTexture [[texture(0)]],
+                               sampler textureSampler [[sampler(0)]]) {
+    // Calculate normalized texture coordinates from shape position
+    float2 shapeSize = uniforms.shapeSize;
+    float2 normalizedPos = (in.localPosition + shapeSize * 0.5) / shapeSize;
+    
+    // Clamp coordinates to prevent artifacts at edges
+    normalizedPos = clamp(normalizedPos, 0.0, 1.0);
+    
+    // Sample the image texture
+    float4 imageColor = imageTexture.sample(textureSampler, normalizedPos);
+    
+    return imageColor;
+}

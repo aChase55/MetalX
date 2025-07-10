@@ -1,4 +1,6 @@
 import SwiftUI
+import MetalKit
+import PhotosUI
 
 struct ShapePropertiesView: View {
     @ObservedObject var canvas: Canvas
@@ -6,16 +8,20 @@ struct ShapePropertiesView: View {
     @State private var solidColor: Color = .blue
     @State private var showingGradientEditor = false
     @State private var currentGradient = GradientData()
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedFillImage: UIImage?
     
     enum FillTypeOption: String, CaseIterable {
         case solid = "Solid"
         case gradient = "Gradient"
+        case image = "Image"
         case none = "None"
         
         var systemImage: String {
             switch self {
             case .solid: return "square.fill"
             case .gradient: return "rectangle.fill.badge.plus"
+            case .image: return "photo.fill"
             case .none: return "square"
             }
         }
@@ -108,6 +114,58 @@ struct ShapePropertiesView: View {
                         .buttonStyle(.bordered)
                     }
                     
+                case .image:
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Image preview
+                        if let fillImage = selectedFillImage {
+                            Image(uiImage: fillImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(height: 60)
+                                .clipped()
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 60)
+                                .overlay(
+                                    VStack {
+                                        Image(systemName: "photo")
+                                            .font(.title2)
+                                            .foregroundColor(.gray)
+                                        Text("No Image")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                )
+                        }
+                        
+                        PhotosPicker(
+                            selection: $selectedPhotoItem,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            Label(selectedFillImage == nil ? "Select Image" : "Change Image", 
+                                  systemImage: "photo.badge.plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .onChange(of: selectedPhotoItem) { _, newItem in
+                            Task {
+                                if let newItem = newItem,
+                                   let data = try? await newItem.loadTransferable(type: Data.self),
+                                   let image = UIImage(data: data) {
+                                    selectedFillImage = image
+                                    applyImageFill(image)
+                                }
+                            }
+                        }
+                    }
+                    
                 case .none:
                     EmptyView()
                 }
@@ -190,8 +248,10 @@ struct ShapePropertiesView: View {
             case .gradient(let gradient):
                 selectedFillType = .gradient
                 currentGradient = GradientData(from: gradient)
-            case .pattern:
-                selectedFillType = .solid // Default to solid for now
+            case .pattern(_):
+                selectedFillType = .image
+                // Note: We can't extract the original UIImage from MTLTexture,
+                // so selectedFillImage will remain nil but the UI will show image mode
             }
         } else {
             selectedFillType = .none
@@ -206,6 +266,11 @@ struct ShapePropertiesView: View {
             shape.fillType = .solid(UIColor(solidColor).cgColor)
         case .gradient:
             applyGradient()
+        case .image:
+            if let image = selectedFillImage {
+                applyImageFill(image)
+            }
+            // Note: PhotosPicker will handle image selection automatically
         case .none:
             shape.fillType = nil
         }
@@ -237,6 +302,36 @@ struct ShapePropertiesView: View {
         canvas.setNeedsDisplay()
         // Force immediate redraw
         NotificationCenter.default.post(name: NSNotification.Name("CanvasNeedsDisplay"), object: nil)
+    }
+    
+    private func applyImageFill(_ image: UIImage) {
+        guard let shape = shapeLayer else { return }
+        
+        // Convert UIImage to MTLTexture
+        if let texture = createTexture(from: image) {
+            shape.fillType = .pattern(texture)
+            // Force texture recreation
+            shape.clearTexture()
+            canvas.setNeedsDisplay()
+            // Force immediate redraw
+            NotificationCenter.default.post(name: NSNotification.Name("CanvasNeedsDisplay"), object: nil)
+        }
+    }
+    
+    private func createTexture(from image: UIImage) -> MTLTexture? {
+        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        
+        let loader = MTKTextureLoader(device: device)
+        do {
+            let texture = try loader.newTexture(cgImage: image.cgImage!, options: [
+                .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+                .SRGB: false
+            ])
+            return texture
+        } catch {
+            print("Failed to create texture from image: \(error)")
+            return nil
+        }
     }
     
     private func updateStroke() {

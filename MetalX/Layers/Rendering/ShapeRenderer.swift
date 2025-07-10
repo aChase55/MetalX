@@ -10,6 +10,7 @@ class ShapeRenderer {
     private var linearGradientPipelineState: MTLRenderPipelineState?
     private var radialGradientPipelineState: MTLRenderPipelineState?
     private var angularGradientPipelineState: MTLRenderPipelineState?
+    private var imageFillPipelineState: MTLRenderPipelineState?
     private var strokePipelineState: MTLRenderPipelineState?
     
     // Uniform buffer for shape data
@@ -158,6 +159,13 @@ class ShapeRenderer {
             vertexDescriptor: vertexDescriptor
         )
         
+        // Image fill pipeline
+        imageFillPipelineState = try createPipelineState(
+            vertexFunction: "shapeVertex",
+            fragmentFunction: "shapeImageFill",
+            vertexDescriptor: vertexDescriptor
+        )
+        
         // Stroke pipeline
         strokePipelineState = try createPipelineState(
             vertexFunction: "shapeVertex",
@@ -301,8 +309,14 @@ class ShapeRenderer {
             )
             
         case .pattern(let texture):
-            // TODO: Implement pattern fill
-            break
+            renderImageFill(
+                texture: texture,
+                shape: shape,
+                vertices: vertices,
+                indices: indices,
+                transform: transform,
+                encoder: encoder
+            )
         }
     }
     
@@ -391,6 +405,51 @@ class ShapeRenderer {
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<GradientUniforms>.stride, index: 1)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<GradientUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&shapeSize, length: MemoryLayout<SIMD2<Float>>.stride, index: 1)
+        
+        // Draw indexed triangles
+        encoder.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: shape.indexCount,
+            indexType: .uint16,
+            indexBuffer: indices,
+            indexBufferOffset: 0
+        )
+    }
+    
+    private func renderImageFill(
+        texture: MTLTexture,
+        shape: VectorShapeLayer,
+        vertices: MTLBuffer,
+        indices: MTLBuffer,
+        transform: matrix_float4x4,
+        encoder: MTLRenderCommandEncoder
+    ) {
+        guard let pipelineState = imageFillPipelineState else { return }
+        
+        encoder.setRenderPipelineState(pipelineState)
+        
+        // Setup uniforms
+        var uniforms = ShapeUniforms()
+        uniforms.transform = transform
+        uniforms.shapeSize = SIMD2<Float>(Float(shape.bounds.width), Float(shape.bounds.height))
+        
+        encoder.setVertexBuffer(vertices, offset: 0, index: 0)
+        encoder.setVertexBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<ShapeUniforms>.stride, index: 0)
+        
+        // Set the image texture and sampler
+        encoder.setFragmentTexture(texture, index: 0)
+        
+        // Create a sampler for the texture
+        let samplerDescriptor = MTLSamplerDescriptor()
+        samplerDescriptor.minFilter = .linear
+        samplerDescriptor.magFilter = .linear
+        samplerDescriptor.sAddressMode = .clampToEdge
+        samplerDescriptor.tAddressMode = .clampToEdge
+        
+        if let sampler = device.makeSamplerState(descriptor: samplerDescriptor) {
+            encoder.setFragmentSamplerState(sampler, index: 0)
+        }
         
         // Draw indexed triangles
         encoder.drawIndexedPrimitives(

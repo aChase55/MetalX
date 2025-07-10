@@ -1,5 +1,6 @@
 import UIKit
 import CoreGraphics
+import MetalKit
 
 // MARK: - Layer to LayerData Conversion
 
@@ -18,7 +19,14 @@ extension Layer {
             isVisible: isVisible,
             isLocked: isLocked,
             blendMode: blendMode.rawValue,
-            bounds: bounds
+            bounds: bounds,
+            dropShadow: dropShadow.isEnabled ? DropShadowData(
+                isEnabled: dropShadow.isEnabled,
+                offset: dropShadow.offset,
+                blur: dropShadow.blur,
+                color: CodableColor(cgColor: dropShadow.color),
+                opacity: dropShadow.opacity
+            ) : nil
         )
         
         // Add type-specific data
@@ -38,7 +46,9 @@ extension Layer {
         case is ImageLayer: return .image
         case is TextLayer: return .text
         case is VectorShapeLayer: return .shape
-        default: fatalError("Unknown layer type")
+        default: 
+            print("Warning: Unknown layer type \(type(of: self)), defaulting to shape")
+            return .shape // Default to shape for unknown types
         }
     }
 }
@@ -101,6 +111,7 @@ extension VectorShapeLayer {
         
         var fillColor: CodableColor? = nil
         var gradientData: GradientSerializationData? = nil
+        var imageData: Data? = nil
         
         if let fillType = fillType {
             switch fillType {
@@ -113,9 +124,9 @@ extension VectorShapeLayer {
                     startPoint: gradient.startPoint,
                     endPoint: gradient.endPoint
                 )
-            case .pattern(_):
-                // Pattern fills not supported in serialization yet
-                break
+            case .pattern(let texture):
+                // Convert texture to image data for serialization
+                imageData = textureToImageData(texture)
             }
         }
         
@@ -125,6 +136,7 @@ extension VectorShapeLayer {
             shapeType: shapeType,
             fillColor: fillColor,
             gradientData: gradientData,
+            imageData: imageData,
             strokeColor: strokeCol,
             strokeWidth: strokeWidth,
             size: CGSize(width: bounds.width, height: bounds.height),
@@ -138,6 +150,47 @@ extension VectorShapeLayer {
         case .radial: return "radial"
         case .angular: return "angular"
         }
+    }
+    
+    private func textureToImageData(_ texture: MTLTexture) -> Data? {
+        // Extract pixel data from texture and convert to PNG
+        let width = texture.width
+        let height = texture.height
+        let bytesPerRow = width * 4
+        let dataSize = height * bytesPerRow
+        
+        var pixelData = [UInt8](repeating: 0, count: dataSize)
+        
+        texture.getBytes(
+            &pixelData,
+            bytesPerRow: bytesPerRow,
+            from: MTLRegion(
+                origin: MTLOrigin(x: 0, y: 0, z: 0),
+                size: MTLSize(width: width, height: height, depth: 1)
+            ),
+            mipmapLevel: 0
+        )
+        
+        // Create CGImage from pixel data
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        
+        guard let context = CGContext(
+            data: &pixelData,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ),
+        let cgImage = context.makeImage() else {
+            return nil
+        }
+        
+        // Convert to UIImage and then to PNG data
+        let image = UIImage(cgImage: cgImage)
+        return image.pngData()
     }
 }
 
@@ -192,9 +245,13 @@ class LayerFactory {
             layer = VectorShapeLayer.rectangle(size: shapeData.size)
         }
         
-        // Load fill type (gradient takes precedence over solid color)
+        // Load fill type (gradient > image > solid color precedence)
         if let gradientData = shapeData.gradientData {
             layer.fillType = .gradient(loadGradient(from: gradientData))
+        } else if let imageData = shapeData.imageData {
+            if let texture = loadImageTexture(from: imageData) {
+                layer.fillType = .pattern(texture)
+            }
         } else if let fillColor = shapeData.fillColor {
             layer.fillType = .solid(fillColor.cgColor)
         }
@@ -234,6 +291,26 @@ class LayerFactory {
         )
     }
     
+    private static func loadImageTexture(from imageData: Data) -> MTLTexture? {
+        guard let device = MTLCreateSystemDefaultDevice(),
+              let image = UIImage(data: imageData),
+              let cgImage = image.cgImage else {
+            return nil
+        }
+        
+        let loader = MTKTextureLoader(device: device)
+        do {
+            let texture = try loader.newTexture(cgImage: cgImage, options: [
+                .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+                .SRGB: false
+            ])
+            return texture
+        } catch {
+            print("Failed to load texture from image data: \(error)")
+            return nil
+        }
+    }
+    
     private static func applyCommonProperties(to layer: any Layer, from data: LayerData) {
         layer.id = data.id
         layer.name = data.name
@@ -244,6 +321,17 @@ class LayerFactory {
         layer.isVisible = data.isVisible
         layer.isLocked = data.isLocked
         layer.blendMode = BlendMode(rawValue: data.blendMode) ?? .normal
+        
+        // Apply drop shadow data if present
+        if let shadowData = data.dropShadow {
+            layer.dropShadow = DropShadow(
+                isEnabled: shadowData.isEnabled,
+                offset: shadowData.offset,
+                blur: shadowData.blur,
+                color: shadowData.color.cgColor,
+                opacity: shadowData.opacity
+            )
+        }
     }
 }
 

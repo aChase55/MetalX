@@ -39,6 +39,7 @@ struct LayerData: Codable, Hashable, Equatable {
     var isLocked: Bool
     var blendMode: String
     var bounds: CGRect
+    var dropShadow: DropShadowData?
     
     // Type-specific data
     var imageData: ImageLayerData?
@@ -50,6 +51,14 @@ struct LayerData: Codable, Hashable, Equatable {
         case text
         case shape
     }
+}
+
+struct DropShadowData: Codable, Hashable, Equatable {
+    var isEnabled: Bool
+    var offset: CGSize
+    var blur: CGFloat
+    var color: CodableColor
+    var opacity: Float
 }
 
 struct LayerTransformData: Codable, Hashable, Equatable {
@@ -75,6 +84,7 @@ struct ShapeLayerData: Codable, Hashable, Equatable {
     var shapeType: String  // "rectangle", "ellipse", "polygon"
     var fillColor: CodableColor?
     var gradientData: GradientSerializationData?
+    var imageData: Data?  // PNG/JPEG data for image fills
     var strokeColor: CodableColor?
     var strokeWidth: Float
     var size: CGSize

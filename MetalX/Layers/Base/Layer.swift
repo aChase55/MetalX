@@ -3,6 +3,15 @@ import CoreGraphics
 import Metal
 import simd
 
+// Drop shadow configuration
+struct DropShadow {
+    var isEnabled: Bool = false
+    var offset: CGSize = CGSize(width: 2, height: 2)
+    var blur: CGFloat = 4.0
+    var color: CGColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.5)
+    var opacity: Float = 1.0
+}
+
 // Layer-specific transform structure
 struct LayerTransform {
     var position: CGPoint = .zero
@@ -50,6 +59,7 @@ protocol Layer: AnyObject, Identifiable {
     var transform: LayerTransform { get set }
     var bounds: CGRect { get }
     var zIndex: Int { get set }
+    var dropShadow: DropShadow { get set }
     
     // Rendering
     func render(context: RenderContext) -> MTLTexture?
@@ -68,6 +78,7 @@ class BaseLayer: Layer {
     var transform = LayerTransform()
     var bounds: CGRect = .zero
     var zIndex: Int = 0
+    var dropShadow = DropShadow()
     
     func render(context: RenderContext) -> MTLTexture? {
         // Override in subclasses
@@ -80,12 +91,23 @@ class BaseLayer: Layer {
         let scaledHeight = bounds.height * transform.scale
         
         // Position is the center of the layer
-        let transformedBounds = CGRect(
+        var transformedBounds = CGRect(
             x: transform.position.x - scaledWidth / 2,
             y: transform.position.y - scaledHeight / 2,
             width: scaledWidth,
             height: scaledHeight
         )
+        
+        // Include drop shadow in bounds if enabled and requested
+        if includeEffects && dropShadow.isEnabled {
+            let shadowOffsetX = abs(dropShadow.offset.width)
+            let shadowOffsetY = abs(dropShadow.offset.height)
+            let shadowBlur = dropShadow.blur
+            
+            // Expand bounds to include shadow
+            let expansion = shadowBlur + max(shadowOffsetX, shadowOffsetY)
+            transformedBounds = transformedBounds.insetBy(dx: -expansion, dy: -expansion)
+        }
         
         return transformedBounds
     }

@@ -8,11 +8,13 @@ struct SelectedLayerPill: View {
     enum LayerPropertyTab: String, CaseIterable {
         case fill = "Fill"
         case blend = "Blend"
+        case shadow = "Shadow"
         
         var systemImage: String {
             switch self {
             case .fill: return "paintbrush.fill"
             case .blend: return "rectangle.stack"
+            case .shadow: return "shadow"
             }
         }
     }
@@ -115,6 +117,8 @@ struct LayerPropertySheet: View {
                         fillControls(for: layer)
                     case .blend:
                         blendControls(for: layer)
+                    case .shadow:
+                        shadowControls(for: layer)
                     }
                     
                     Spacer()
@@ -185,6 +189,120 @@ struct LayerPropertySheet: View {
                     }
                 ), in: 0...1)
                 .accentColor(.blue)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func shadowControls(for layer: any Layer) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Drop Shadow Toggle
+            Toggle("Enable Drop Shadow", isOn: Binding(
+                get: { layer.dropShadow.isEnabled },
+                set: { enabled in
+                    layer.dropShadow.isEnabled = enabled
+                    canvas.setNeedsDisplay()
+                }
+            ))
+            .font(.headline)
+            
+            if layer.dropShadow.isEnabled {
+                // Shadow Color
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Shadow Color")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    ColorPicker("Shadow Color", selection: Binding(
+                        get: { Color(UIColor(cgColor: layer.dropShadow.color)) },
+                        set: { newColor in
+                            layer.dropShadow.color = UIColor(newColor).cgColor
+                            canvas.setNeedsDisplay()
+                        }
+                    ))
+                    .labelsHidden()
+                }
+                
+                // Shadow Offset
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Shadow Offset")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text("X:")
+                        Slider(value: Binding(
+                            get: { layer.dropShadow.offset.width },
+                            set: { newX in
+                                layer.dropShadow.offset.width = newX
+                                canvas.setNeedsDisplay()
+                            }
+                        ), in: -20...20)
+                        Text("\(Int(layer.dropShadow.offset.width))pt")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .frame(width: 40)
+                    }
+                    
+                    HStack {
+                        Text("Y:")
+                        Slider(value: Binding(
+                            get: { layer.dropShadow.offset.height },
+                            set: { newY in
+                                layer.dropShadow.offset.height = newY
+                                canvas.setNeedsDisplay()
+                            }
+                        ), in: -20...20)
+                        Text("\(Int(layer.dropShadow.offset.height))pt")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .frame(width: 40)
+                    }
+                }
+                
+                // Shadow Blur
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Shadow Blur")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(Int(layer.dropShadow.blur))pt")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Slider(value: Binding(
+                        get: { layer.dropShadow.blur },
+                        set: { newBlur in
+                            layer.dropShadow.blur = newBlur
+                            canvas.setNeedsDisplay()
+                        }
+                    ), in: 0...20)
+                    .accentColor(.blue)
+                }
+                
+                // Shadow Opacity
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Shadow Opacity")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(Int(layer.dropShadow.opacity * 100))%")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Slider(value: Binding(
+                        get: { CGFloat(layer.dropShadow.opacity) },
+                        set: { newOpacity in
+                            layer.dropShadow.opacity = Float(newOpacity)
+                            canvas.setNeedsDisplay()
+                        }
+                    ), in: 0...1)
+                    .accentColor(.blue)
+                }
             }
         }
     }
