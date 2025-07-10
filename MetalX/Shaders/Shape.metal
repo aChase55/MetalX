@@ -1,3 +1,11 @@
+//
+//  Shape.metal
+//  MetalX
+//
+//  Vector shape rendering shaders
+//  Handles rectangles, ellipses, polygons with fills, gradients, and strokes
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

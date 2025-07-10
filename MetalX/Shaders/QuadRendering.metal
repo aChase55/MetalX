@@ -1,3 +1,11 @@
+//
+//  QuadRendering.metal
+//  MetalX
+//
+//  Basic quad rendering shaders for textures and layers
+//  Handles texture sampling, opacity, and transformations
+//
+
 #include <metal_stdlib>
 using namespace metal;
 
@@ -37,33 +45,6 @@ fragment float4 quadFragment(VertexOut in [[stage_in]],
     color.rgb *= color.a;
     
     return color;
-}
-
-// Shadow fragment shader
-struct ShadowFragmentUniforms {
-    float4 shadowColor;
-    float shadowOpacity;
-    float3 padding; // For alignment
-};
-
-fragment float4 shadowFragment(VertexOut in [[stage_in]],
-                               texture2d<float> texture [[texture(0)]],
-                               sampler textureSampler [[sampler(0)]],
-                               constant ShadowFragmentUniforms& uniforms [[buffer(1)]]) {
-    // Sample the texture to get the alpha channel
-    float4 texColor = texture.sample(textureSampler, in.texCoord);
-    
-    // Use the texture's alpha to determine shadow opacity
-    float shadowAlpha = texColor.a * uniforms.shadowOpacity;
-    
-    // Create shadow color with proper alpha
-    float4 shadowColor = uniforms.shadowColor;
-    shadowColor.a *= shadowAlpha;
-    
-    // Premultiply alpha for proper blending
-    shadowColor.rgb *= shadowColor.a;
-    
-    return shadowColor;
 }
 
 // Textured quad fragment shader (no opacity modification)

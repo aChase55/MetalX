@@ -1,3 +1,11 @@
+//
+//  AdvancedBlend.metal
+//  MetalX
+//
+//  Advanced blending modes for layer compositing
+//  Implements Photoshop-style blend modes with accurate color math
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

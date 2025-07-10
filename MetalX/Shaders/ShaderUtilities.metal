@@ -1,3 +1,11 @@
+//
+//  ShaderUtilities.metal
+//  MetalX
+//
+//  Common shader utilities and helper functions
+//  Shared structures, color conversions, and math functions
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

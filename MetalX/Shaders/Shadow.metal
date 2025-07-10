@@ -1,3 +1,11 @@
+//
+//  Shadow.metal
+//  MetalX
+//
+//  Drop shadow rendering shaders
+//  Handles silhouette extraction, blur, and shadow compositing
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

@@ -1,3 +1,11 @@
+//
+//  Blur.metal
+//  MetalX
+//
+//  Blur effects including Gaussian, box, and motion blur
+//  Optimized two-pass implementation for performance
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

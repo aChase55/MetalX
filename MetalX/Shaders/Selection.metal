@@ -1,3 +1,11 @@
+//
+//  Selection.metal
+//  MetalX
+//
+//  Selection highlight shaders for interactive editing
+//  Animated marching ants effect for selected layers
+//
+
 #include <metal_stdlib>
 using namespace metal;
 

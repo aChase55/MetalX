@@ -12,7 +12,6 @@ class ShapeRenderer {
     private var angularGradientPipelineState: MTLRenderPipelineState?
     private var imageFillPipelineState: MTLRenderPipelineState?
     private var strokePipelineState: MTLRenderPipelineState?
-    // private var shadowPipelineState: MTLRenderPipelineState? // Using ShadowRenderer instead
     
     // Uniform buffer for shape data
     struct ShapeUniforms {
@@ -34,8 +33,6 @@ class ShapeRenderer {
             self.shapeType = 0
         }
     }
-    
-    // Shadow uniforms moved to ShadowRenderer
     
     struct GradientUniforms {
         var transform: matrix_float4x4
@@ -175,13 +172,6 @@ class ShapeRenderer {
             fragmentFunction: "shapeStroke",
             vertexDescriptor: vertexDescriptor
         )
-        
-        // Shadow pipeline - commenting out for now as we're using ShadowRenderer instead
-        // shadowPipelineState = try createPipelineState(
-        //     vertexFunction: "shapeShadowVertex",
-        //     fragmentFunction: "shapeShadow",
-        //     vertexDescriptor: vertexDescriptor
-        // )
     }
     
     private func createPipelineState(
@@ -248,17 +238,6 @@ class ShapeRenderer {
             znear: -1.0,
             zfar: 1.0
         ))
-        
-        // Drop shadow is now handled at the canvas level by ShadowRenderer
-        // if shape.dropShadow.isEnabled {
-        //     renderDropShadow(
-        //         shape: shape,
-        //         vertices: vertices,
-        //         indices: indices,
-        //         transform: transform,
-        //         encoder: renderEncoder
-        //     )
-        // }
         
         // Handle different rendering cases
         if let fillType = shape.fillType {
@@ -600,65 +579,6 @@ class ShapeRenderer {
         
         return SIMD4<Float>(0, 0, 0, 1)
     }
-    
-    // MARK: - Drop Shadow Rendering
-    
-    // Drop shadow is now handled at the canvas level by ShadowRenderer
-    // private func renderDropShadow(
-    //     shape: VectorShapeLayer,
-    //     vertices: MTLBuffer,
-    //     indices: MTLBuffer,
-    //     transform: matrix_float4x4,
-    //     encoder: MTLRenderCommandEncoder
-    // ) {
-    //     guard let shadowPipelineState = shadowPipelineState else {
-    //         print("ShapeRenderer: Shadow pipeline state not available")
-    //         return
-    //     }
-    //     
-    //     // Set pipeline state
-    //     encoder.setRenderPipelineState(shadowPipelineState)
-    //     
-    //     // Set vertex buffer
-    //     encoder.setVertexBuffer(vertices, offset: 0, index: 0)
-    //     
-    //     // Create shadow uniforms
-    //     var shadowUniforms = ShadowUniforms()
-    //     shadowUniforms.transform = transform
-    //     shadowUniforms.shadowColor = colorToSIMD(shape.dropShadow.color)
-    //     shadowUniforms.shadowOffset = SIMD2<Float>(
-    //         Float(shape.dropShadow.offset.width),
-    //         Float(shape.dropShadow.offset.height)
-    //     )
-    //     shadowUniforms.shadowBlur = Float(shape.dropShadow.blur)
-    //     shadowUniforms.shadowOpacity = shape.dropShadow.opacity
-    //     shadowUniforms.shapeSize = SIMD2<Float>(
-    //         Float(shape.bounds.width),
-    //         Float(shape.bounds.height)
-    //     )
-    //     
-    //     // Determine shape type
-    //     if shape.name.lowercased().contains("rectangle") {
-    //         shadowUniforms.shapeType = 0
-    //     } else if shape.name.lowercased().contains("circle") || shape.name.lowercased().contains("ellipse") {
-    //         shadowUniforms.shapeType = 1
-    //     } else {
-    //         shadowUniforms.shapeType = 2 // polygon
-    //     }
-    //     
-    //     // Set uniforms
-    //     encoder.setVertexBytes(&shadowUniforms, length: MemoryLayout<ShadowUniforms>.size, index: 0)
-    //     encoder.setFragmentBytes(&shadowUniforms, length: MemoryLayout<ShadowUniforms>.size, index: 0)
-    //     
-    //     // Draw indexed primitives
-    //     encoder.drawIndexedPrimitives(
-    //         type: .triangle,
-    //         indexCount: shape.indexCount,
-    //         indexType: .uint16,
-    //         indexBuffer: indices,
-    //         indexBufferOffset: 0
-    //     )
-    // }
 }
 
 enum ShapeRendererError: Error {
