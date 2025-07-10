@@ -119,7 +119,9 @@ struct LayerPropertySheet: View {
                     case .blend:
                         blendControls(for: layer)
                     case .shadow:
-                        shadowControls(for: layer)
+                        ScrollView {
+                            shadowControls(for: layer)
+                        }
                     }
                     
                     Spacer()
@@ -238,7 +240,7 @@ struct LayerPropertySheet: View {
                                 layer.dropShadow.offset.width = newX
                                 canvas.updateShadowForLayer(layer)
                             }
-                        ), in: -50...50)
+                        ), in: -100...100)
                         Text("\(Int(layer.dropShadow.offset.width))pt")
                             .font(.caption)
                             .monospacedDigit()
@@ -253,7 +255,7 @@ struct LayerPropertySheet: View {
                                 layer.dropShadow.offset.height = newY
                                 canvas.updateShadowForLayer(layer)
                             }
-                        ), in: -50...50)
+                        ), in: -100...100)
                         Text("\(Int(layer.dropShadow.offset.height))pt")
                             .font(.caption)
                             .monospacedDigit()

@@ -199,7 +199,7 @@ struct ShapePropertiesView: View {
                                             shape.dropShadow.offset.width = $0
                                             canvas.updateShadowForLayer(shape)
                                         }
-                                    ), in: -50...50)
+                                    ), in: -100...100)
                                     Text("\(Int(shape.dropShadow.offset.width))")
                                         .font(.caption)
                                         .monospacedDigit()
@@ -215,7 +215,7 @@ struct ShapePropertiesView: View {
                                             shape.dropShadow.offset.height = $0
                                             canvas.updateShadowForLayer(shape)
                                         }
-                                    ), in: -50...50)
+                                    ), in: -100...100)
                                     Text("\(Int(shape.dropShadow.offset.height))")
                                         .font(.caption)
                                         .monospacedDigit()
