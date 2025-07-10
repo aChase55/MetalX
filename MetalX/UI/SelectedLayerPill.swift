@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SelectedLayerPill: View {
     @ObservedObject var canvas: Canvas
-    @State private var selectedTab: LayerPropertyTab = .fill
+    @State private var selectedTab: LayerPropertyTab = .position
     @State private var showingPropertySheet = false
     
     enum LayerPropertyTab: String, CaseIterable {
@@ -13,7 +13,7 @@ struct SelectedLayerPill: View {
         
         var systemImage: String {
             switch self {
-            case .position: return "move"
+            case .position: return "arrow.up.arrow.down.square"
             case .fill: return "paintbrush.fill"
             case .blend: return "rectangle.stack"
             case .shadow: return "shadow"
@@ -23,6 +23,16 @@ struct SelectedLayerPill: View {
     
     var selectedLayer: (any Layer)? {
         canvas.selectedLayer
+    }
+    
+    var availableTabs: [LayerPropertyTab] {
+        guard let layer = selectedLayer else { return LayerPropertyTab.allCases }
+        
+        // Hide Fill tab for ImageLayers
+        if layer is ImageLayer {
+            return [.position, .blend, .shadow]
+        }
+        return LayerPropertyTab.allCases
     }
     
     var body: some View {
@@ -57,7 +67,7 @@ struct SelectedLayerPill: View {
                 
                 // Property tabs row
                 HStack(spacing: 0) {
-                    ForEach(LayerPropertyTab.allCases, id: \.self) { tab in
+                    ForEach(availableTabs, id: \.self) { tab in
                         Button(action: {
                             selectedTab = tab
                             showingPropertySheet = true
@@ -69,12 +79,12 @@ struct SelectedLayerPill: View {
                                 Text(tab.rawValue)
                                     .font(.system(size: 10, weight: .medium))
                             }
-                            .foregroundColor(selectedTab == tab ? .white : .primary)
+                            .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(selectedTab == tab ? Color.blue : Color.clear)
+                                    .fill(Color.clear)
                             )
                         }
                     }
@@ -94,11 +104,42 @@ struct SelectedLayerPill: View {
                     canvas: canvas,
                     selectedTab: selectedTab
                 )
-                .presentationDetents([.height(400), .medium])
+                .asSelfSizingSheet()
                 .presentationDragIndicator(.visible)
+                .presentationBackgroundInteraction(.enabled)
                 .interactiveDismissDisabled(false)
             }
         }
+    }
+}
+
+// Self-sizing sheet implementation
+extension View {
+    func asSelfSizingSheet() -> some View {
+        modifier(SelfSizingSheet())
+    }
+}
+
+struct SelfSizingSheet: ViewModifier {
+    @State private var sheetHeight: CGFloat = .zero
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                GeometryReader { geometry in
+                    Color.clear.preference(key: InnerHeightPreferenceKey.self, value: geometry.size.height)
+                }
+            }
+            .onPreferenceChange(InnerHeightPreferenceKey.self) { newHeight in
+                sheetHeight = newHeight
+            }
+            .presentationDetents([.height(sheetHeight)])
+    }
+}
+
+struct InnerHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = .zero
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
@@ -112,47 +153,32 @@ struct LayerPropertySheet: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(alignment: .leading, spacing: 20) {
-                if let layer = selectedLayer {
-                    switch selectedTab {
-                    case .position:
-                        positionControls(for: layer)
-                    case .fill:
-                        fillControls(for: layer)
-                    case .blend:
-                        blendControls(for: layer)
-                    case .shadow:
-                        ScrollView {
-                            shadowControls(for: layer)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-            .padding()
-            .navigationTitle(selectedTab.rawValue)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+        VStack(alignment: .leading, spacing: 20) {
+            if let layer = selectedLayer {
+                switch selectedTab {
+                case .position:
+                    positionControls(for: layer)
+                case .fill:
+                    fillControls(for: layer)
+                case .blend:
+                    blendControls(for: layer)
+                case .shadow:
+                    shadowControls(for: layer)
                 }
             }
         }
+        .padding()
     }
     
     @ViewBuilder
     private func positionControls(for layer: any Layer) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Position controls with nudge buttons
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Position")
-                    .font(.headline)
-                
+        VStack(alignment: .leading, spacing: 16) {
+            // Position controls - X and Y side by side
+            HStack(spacing: 20) {
                 // X Position
-                HStack {
+                HStack(spacing: 8) {
                     Text("X:")
+                        .foregroundColor(.secondary)
                         .frame(width: 20)
                     
                     Button(action: {
@@ -165,7 +191,7 @@ struct LayerPropertySheet: View {
                     
                     Text(String(format: "%.0f", layer.transform.position.x))
                         .font(.system(.body, design: .monospaced))
-                        .frame(width: 60)
+                        .frame(width: 50)
                     
                     Button(action: {
                         layer.transform.position.x += 1
@@ -174,13 +200,12 @@ struct LayerPropertySheet: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.blue)
                     }
-                    
-                    Spacer()
                 }
                 
                 // Y Position
-                HStack {
+                HStack(spacing: 8) {
                     Text("Y:")
+                        .foregroundColor(.secondary)
                         .frame(width: 20)
                     
                     Button(action: {
@@ -193,7 +218,7 @@ struct LayerPropertySheet: View {
                     
                     Text(String(format: "%.0f", layer.transform.position.y))
                         .font(.system(.body, design: .monospaced))
-                        .frame(width: 60)
+                        .frame(width: 50)
                     
                     Button(action: {
                         layer.transform.position.y += 1
@@ -202,8 +227,6 @@ struct LayerPropertySheet: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.blue)
                     }
-                    
-                    Spacer()
                 }
             }
             
@@ -211,8 +234,6 @@ struct LayerPropertySheet: View {
             
             // Transform controls
             VStack(alignment: .leading, spacing: 12) {
-                Text("Transform")
-                    .font(.headline)
                 
                 HStack(spacing: 16) {
                     // Flip Horizontal
@@ -259,8 +280,6 @@ struct LayerPropertySheet: View {
             
             // Layer actions
             VStack(alignment: .leading, spacing: 12) {
-                Text("Layer Actions")
-                    .font(.headline)
                 
                 HStack(spacing: 16) {
                     // Duplicate
@@ -403,30 +422,27 @@ struct LayerPropertySheet: View {
     private func blendControls(for layer: any Layer) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Blend Mode Picker
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Blend Mode")
-                    .font(.headline)
-                
-                Picker("Blend Mode", selection: Binding(
-                    get: { layer.blendMode },
-                    set: { newMode in
-                        layer.blendMode = newMode
-                        canvas.setNeedsDisplay()
-                    }
-                )) {
-                    ForEach(BlendMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue.capitalized).tag(mode)
-                    }
+            Picker("Blend Mode", selection: Binding(
+                get: { layer.blendMode },
+                set: { newMode in
+                    layer.blendMode = newMode
+                    canvas.setNeedsDisplay()
                 }
-                .pickerStyle(WheelPickerStyle())
-                .frame(height: 150)
+            )) {
+                ForEach(BlendMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue.capitalized).tag(mode)
+                }
             }
+            .pickerStyle(WheelPickerStyle())
+            .frame(height: 120)
+            
+            Divider()
             
             // Opacity Slider
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Opacity")
-                        .font(.headline)
+                        .foregroundColor(.secondary)
                     Spacer()
                     Text("\(Int(layer.opacity * 100))%")
                         .font(.subheadline)
@@ -449,23 +465,23 @@ struct LayerPropertySheet: View {
     private func shadowControls(for layer: any Layer) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Drop Shadow Toggle
-            Toggle("Enable Drop Shadow", isOn: Binding(
+            Toggle("Drop Shadow", isOn: Binding(
                 get: { layer.dropShadow.isEnabled },
                 set: { enabled in
                     layer.dropShadow.isEnabled = enabled
                     canvas.updateShadowForLayer(layer)
                 }
             ))
-            .font(.headline)
             
             if layer.dropShadow.isEnabled {
-                // Shadow Color
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Shadow Color")
-                        .font(.subheadline)
+                Divider()
+                
+                // Shadow Color with inline picker
+                HStack {
+                    Text("Color")
                         .foregroundColor(.secondary)
-                    
-                    ColorPicker("Shadow Color", selection: Binding(
+                    Spacer()
+                    ColorPicker("", selection: Binding(
                         get: { Color(UIColor(cgColor: layer.dropShadow.color)) },
                         set: { newColor in
                             layer.dropShadow.color = UIColor(newColor).cgColor
@@ -475,40 +491,48 @@ struct LayerPropertySheet: View {
                     .labelsHidden()
                 }
                 
-                // Shadow Offset
+                // Shadow Offset - X and Y on same line with compact sliders
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Shadow Offset")
+                    Text("Offset")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    HStack {
-                        Text("X:")
-                        Slider(value: Binding(
-                            get: { layer.dropShadow.offset.width },
-                            set: { newX in
-                                layer.dropShadow.offset.width = newX
-                                canvas.updateShadowForLayer(layer)
-                            }
-                        ), in: -100...100)
-                        Text("\(Int(layer.dropShadow.offset.width))pt")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .frame(width: 40)
-                    }
-                    
-                    HStack {
-                        Text("Y:")
-                        Slider(value: Binding(
-                            get: { layer.dropShadow.offset.height },
-                            set: { newY in
-                                layer.dropShadow.offset.height = newY
-                                canvas.updateShadowForLayer(layer)
-                            }
-                        ), in: -100...100)
-                        Text("\(Int(layer.dropShadow.offset.height))pt")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .frame(width: 40)
+                    HStack(spacing: 12) {
+                        HStack(spacing: 4) {
+                            Text("X")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 15)
+                            Slider(value: Binding(
+                                get: { layer.dropShadow.offset.width },
+                                set: { newX in
+                                    layer.dropShadow.offset.width = newX
+                                    canvas.updateShadowForLayer(layer)
+                                }
+                            ), in: -100...100)
+                            Text("\(Int(layer.dropShadow.offset.width))")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 30)
+                        }
+                        
+                        HStack(spacing: 4) {
+                            Text("Y")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 15)
+                            Slider(value: Binding(
+                                get: { layer.dropShadow.offset.height },
+                                set: { newY in
+                                    layer.dropShadow.offset.height = newY
+                                    canvas.updateShadowForLayer(layer)
+                                }
+                            ), in: -100...100)
+                            Text("\(Int(layer.dropShadow.offset.height))")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 30)
+                        }
                     }
                 }
                 
