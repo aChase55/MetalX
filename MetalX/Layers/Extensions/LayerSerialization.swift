@@ -56,6 +56,32 @@ extension Layer {
                 parameters["hueShift"] = hueEffect.hueShift
                 parameters["saturation"] = hueEffect.saturation
                 parameters["lightness"] = hueEffect.lightness
+            } else if let pixellateEffect = effect as? PixellateEffect {
+                parameters["pixelSize"] = pixellateEffect.pixelSize
+            } else if let noiseEffect = effect as? NoiseEffect {
+                parameters["amount"] = noiseEffect.amount
+                parameters["seed"] = noiseEffect.seed
+            } else if let thresholdEffect = effect as? ThresholdEffect {
+                parameters["threshold"] = thresholdEffect.threshold
+                parameters["smoothness"] = thresholdEffect.smoothness
+            } else if let chromaticEffect = effect as? ChromaticAberrationEffect {
+                parameters["redOffset"] = chromaticEffect.redOffset
+                parameters["blueOffset"] = chromaticEffect.blueOffset
+            } else if let vhsEffect = effect as? VHSEffect {
+                parameters["lineIntensity"] = vhsEffect.lineIntensity
+                parameters["noiseIntensity"] = vhsEffect.noiseIntensity
+                parameters["colorBleed"] = vhsEffect.colorBleed
+                parameters["distortion"] = vhsEffect.distortion
+            } else if let posterizeEffect = effect as? PosterizeEffect {
+                parameters["levels"] = posterizeEffect.levels
+            } else if let vignetteEffect = effect as? VignetteEffect {
+                parameters["size"] = vignetteEffect.size
+                parameters["smoothness"] = vignetteEffect.smoothness
+                parameters["darkness"] = vignetteEffect.darkness
+            } else if let halftoneEffect = effect as? HalftoneEffect {
+                parameters["dotSize"] = halftoneEffect.dotSize
+                parameters["angle"] = halftoneEffect.angle
+                parameters["sharpness"] = halftoneEffect.sharpness
             }
             
             return EffectData(
@@ -394,6 +420,48 @@ class LayerFactory {
             hueEffect.saturation = data.parameters["saturation"] ?? 1.0
             hueEffect.lightness = data.parameters["lightness"] ?? 0.0
             effect = hueEffect
+        } else if data.type.contains("PixellateEffect") {
+            let pixellateEffect = PixellateEffect()
+            pixellateEffect.pixelSize = data.parameters["pixelSize"] ?? 8.0
+            effect = pixellateEffect
+        } else if data.type.contains("NoiseEffect") {
+            let noiseEffect = NoiseEffect()
+            noiseEffect.amount = data.parameters["amount"] ?? 0.1
+            noiseEffect.seed = data.parameters["seed"] ?? 0.5
+            effect = noiseEffect
+        } else if data.type.contains("ThresholdEffect") {
+            let thresholdEffect = ThresholdEffect()
+            thresholdEffect.threshold = data.parameters["threshold"] ?? 0.5
+            thresholdEffect.smoothness = data.parameters["smoothness"] ?? 0.01
+            effect = thresholdEffect
+        } else if data.type.contains("ChromaticAberrationEffect") {
+            let chromaticEffect = ChromaticAberrationEffect()
+            chromaticEffect.redOffset = data.parameters["redOffset"] ?? 2.0
+            chromaticEffect.blueOffset = data.parameters["blueOffset"] ?? -2.0
+            effect = chromaticEffect
+        } else if data.type.contains("VHSEffect") {
+            let vhsEffect = VHSEffect()
+            vhsEffect.lineIntensity = data.parameters["lineIntensity"] ?? 0.5
+            vhsEffect.noiseIntensity = data.parameters["noiseIntensity"] ?? 0.3
+            vhsEffect.colorBleed = data.parameters["colorBleed"] ?? 0.2
+            vhsEffect.distortion = data.parameters["distortion"] ?? 0.1
+            effect = vhsEffect
+        } else if data.type.contains("PosterizeEffect") {
+            let posterizeEffect = PosterizeEffect()
+            posterizeEffect.levels = data.parameters["levels"] ?? 8.0
+            effect = posterizeEffect
+        } else if data.type.contains("VignetteEffect") {
+            let vignetteEffect = VignetteEffect()
+            vignetteEffect.size = data.parameters["size"] ?? 0.5
+            vignetteEffect.smoothness = data.parameters["smoothness"] ?? 0.3
+            vignetteEffect.darkness = data.parameters["darkness"] ?? 0.8
+            effect = vignetteEffect
+        } else if data.type.contains("HalftoneEffect") {
+            let halftoneEffect = HalftoneEffect()
+            halftoneEffect.dotSize = data.parameters["dotSize"] ?? 8.0
+            halftoneEffect.angle = data.parameters["angle"] ?? 45.0
+            halftoneEffect.sharpness = data.parameters["sharpness"] ?? 0.8
+            effect = halftoneEffect
         } else {
             return nil
         }
@@ -439,6 +507,32 @@ extension Canvas {
                 parameters["hueShift"] = hueEffect.hueShift
                 parameters["saturation"] = hueEffect.saturation
                 parameters["lightness"] = hueEffect.lightness
+            } else if let pixellateEffect = effect as? PixellateEffect {
+                parameters["pixelSize"] = pixellateEffect.pixelSize
+            } else if let noiseEffect = effect as? NoiseEffect {
+                parameters["amount"] = noiseEffect.amount
+                parameters["seed"] = noiseEffect.seed
+            } else if let thresholdEffect = effect as? ThresholdEffect {
+                parameters["threshold"] = thresholdEffect.threshold
+                parameters["smoothness"] = thresholdEffect.smoothness
+            } else if let chromaticEffect = effect as? ChromaticAberrationEffect {
+                parameters["redOffset"] = chromaticEffect.redOffset
+                parameters["blueOffset"] = chromaticEffect.blueOffset
+            } else if let vhsEffect = effect as? VHSEffect {
+                parameters["lineIntensity"] = vhsEffect.lineIntensity
+                parameters["noiseIntensity"] = vhsEffect.noiseIntensity
+                parameters["colorBleed"] = vhsEffect.colorBleed
+                parameters["distortion"] = vhsEffect.distortion
+            } else if let posterizeEffect = effect as? PosterizeEffect {
+                parameters["levels"] = posterizeEffect.levels
+            } else if let vignetteEffect = effect as? VignetteEffect {
+                parameters["size"] = vignetteEffect.size
+                parameters["smoothness"] = vignetteEffect.smoothness
+                parameters["darkness"] = vignetteEffect.darkness
+            } else if let halftoneEffect = effect as? HalftoneEffect {
+                parameters["dotSize"] = halftoneEffect.dotSize
+                parameters["angle"] = halftoneEffect.angle
+                parameters["sharpness"] = halftoneEffect.sharpness
             }
             
             return EffectData(

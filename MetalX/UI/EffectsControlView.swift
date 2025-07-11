@@ -50,6 +50,22 @@ struct EffectsControlView: View {
                                     BrightnessContrastControls(effect: brightnessContrast)
                                 } else if let hueSaturation = effect as? HueSaturationEffect {
                                     HueSaturationControls(effect: hueSaturation)
+                                } else if let pixellate = effect as? PixellateEffect {
+                                    PixellateControls(effect: pixellate)
+                                } else if let noise = effect as? NoiseEffect {
+                                    NoiseControls(effect: noise)
+                                } else if let threshold = effect as? ThresholdEffect {
+                                    ThresholdControls(effect: threshold)
+                                } else if let chromatic = effect as? ChromaticAberrationEffect {
+                                    ChromaticAberrationControls(effect: chromatic)
+                                } else if let vhs = effect as? VHSEffect {
+                                    VHSControls(effect: vhs)
+                                } else if let posterize = effect as? PosterizeEffect {
+                                    PosterizeControls(effect: posterize)
+                                } else if let vignette = effect as? VignetteEffect {
+                                    VignetteControls(effect: vignette)
+                                } else if let halftone = effect as? HalftoneEffect {
+                                    HalftoneControls(effect: halftone)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -153,6 +169,60 @@ struct EffectPickerView: View {
                     onSelect(HueSaturationEffect())
                 }) {
                     Label("Hue/Saturation", systemImage: "paintpalette")
+                }
+                
+                Button(action: {
+                    onSelect(ThresholdEffect())
+                }) {
+                    Label("Threshold", systemImage: "circle.righthalf.filled")
+                }
+                
+                Button(action: {
+                    onSelect(PosterizeEffect())
+                }) {
+                    Label("Posterize", systemImage: "rectangle.3.group")
+                }
+            }
+            
+            Section("Stylize") {
+                Button(action: {
+                    onSelect(PixellateEffect())
+                }) {
+                    Label("Pixellate", systemImage: "grid")
+                }
+                
+                Button(action: {
+                    onSelect(HalftoneEffect())
+                }) {
+                    Label("Halftone", systemImage: "circle.grid.3x3")
+                }
+                
+                Button(action: {
+                    onSelect(VignetteEffect())
+                }) {
+                    Label("Vignette", systemImage: "circle.dashed")
+                }
+            }
+            
+            Section("Distort") {
+                Button(action: {
+                    onSelect(ChromaticAberrationEffect())
+                }) {
+                    Label("Chromatic Aberration", systemImage: "eye.trianglebadge.exclamationmark")
+                }
+                
+                Button(action: {
+                    onSelect(VHSEffect())
+                }) {
+                    Label("VHS", systemImage: "tv.and.hifispeaker.fill")
+                }
+            }
+            
+            Section("Noise") {
+                Button(action: {
+                    onSelect(NoiseEffect())
+                }) {
+                    Label("Noise", systemImage: "waveform")
                 }
             }
         }
@@ -284,6 +354,288 @@ struct HueSaturationControls: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+        }
+    }
+}
+
+// MARK: - New Effect Controls
+
+struct PixellateControls: View {
+    @ObservedObject var effect: PixellateEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Pixel Size")
+                    Spacer()
+                    Text(String(format: "%.0f", effect.pixelSize))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.pixelSize, in: 1...32)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct NoiseControls: View {
+    @ObservedObject var effect: NoiseEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Amount")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.amount * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.amount, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Seed")
+                    Spacer()
+                    Text(String(format: "%.2f", effect.seed))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.seed, in: 0...1)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct ThresholdControls: View {
+    @ObservedObject var effect: ThresholdEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Threshold")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.threshold * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.threshold, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Smoothness")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.smoothness * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.smoothness, in: 0...0.1)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct ChromaticAberrationControls: View {
+    @ObservedObject var effect: ChromaticAberrationEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Red Offset")
+                    Spacer()
+                    Text(String(format: "%.1f", effect.redOffset))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.redOffset, in: -10...10)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Blue Offset")
+                    Spacer()
+                    Text(String(format: "%.1f", effect.blueOffset))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.blueOffset, in: -10...10)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct VHSControls: View {
+    @ObservedObject var effect: VHSEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Scanlines")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.lineIntensity * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.lineIntensity, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Noise")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.noiseIntensity * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.noiseIntensity, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Color Bleed")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.colorBleed * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.colorBleed, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Distortion")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.distortion * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.distortion, in: 0...1)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct PosterizeControls: View {
+    @ObservedObject var effect: PosterizeEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Levels")
+                    Spacer()
+                    Text(String(format: "%.0f", effect.levels))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.levels, in: 2...32)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct VignetteControls: View {
+    @ObservedObject var effect: VignetteEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Size")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.size * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.size, in: 0...2)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Smoothness")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.smoothness * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.smoothness, in: 0...1)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Darkness")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.darkness * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.darkness, in: 0...1)
+                    .accentColor(.blue)
+            }
+        }
+    }
+}
+
+struct HalftoneControls: View {
+    @ObservedObject var effect: HalftoneEffect
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Dot Size")
+                    Spacer()
+                    Text(String(format: "%.0f", effect.dotSize))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.dotSize, in: 2...32)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Angle")
+                    Spacer()
+                    Text(String(format: "%.0f°", effect.angle))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.angle, in: 0...180)
+                    .accentColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Sharpness")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.sharpness * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.sharpness, in: 0...1)
+                    .accentColor(.blue)
+            }
         }
     }
 }
