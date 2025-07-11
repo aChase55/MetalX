@@ -2,6 +2,7 @@ import Metal
 import MetalKit
 import CoreGraphics
 import UIKit
+import SwiftUI
 
 // Simplified text renderer that works now but can be extended
 class SimpleTextRenderer {
@@ -101,21 +102,9 @@ class SimpleTextRenderer {
             let string = NSAttributedString(string: text, attributes: attributes)
             string.draw(at: drawPoint)
             
-        case .gradient(let colors, let startPoint, let endPoint):
-            // Create gradient layer
-            let gradientLayer = CAGradientLayer()
-            gradientLayer.frame = CGRect(origin: .zero, size: textureSize)
-            gradientLayer.colors = colors.map { $0.cgColor }
-            gradientLayer.startPoint = startPoint
-            gradientLayer.endPoint = endPoint
-            
-            // Render gradient to image
-            UIGraphicsBeginImageContextWithOptions(textureSize, false, 1.0)
-            if let gradientContext = UIGraphicsGetCurrentContext() {
-                gradientLayer.render(in: gradientContext)
-            }
-            let gradientImage = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
+        case .gradient(let gradient):
+            // Create gradient image using SwiftUI
+            let gradientImage = createGradientImage(gradient: gradient, size: textureSize)
             
             // Draw text with gradient pattern color
             if let gradientImage = gradientImage {
@@ -216,5 +205,58 @@ class SimpleTextRenderer {
         }
         
         return texture
+    }
+    
+    private func createGradientImage(gradient: MetalX.Gradient, size: CGSize) -> UIImage? {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { _ in
+            // Create SwiftUI gradient
+            let stops = gradient.colorStops.map { stop in
+                SwiftUI.Gradient.Stop(
+                    color: Color(UIColor(cgColor: stop.color)),
+                    location: CGFloat(stop.location)
+                )
+            }
+            
+            let swiftUIGradient = SwiftUI.Gradient(stops: stops)
+            
+            // Create the appropriate gradient view
+            let gradientView: AnyView
+            switch gradient.type {
+            case .linear:
+                gradientView = AnyView(
+                    LinearGradient(
+                        gradient: swiftUIGradient,
+                        startPoint: UnitPoint(x: gradient.startPoint.x, y: gradient.startPoint.y),
+                        endPoint: UnitPoint(x: gradient.endPoint.x, y: gradient.endPoint.y)
+                    )
+                )
+            case .radial:
+                gradientView = AnyView(
+                    RadialGradient(
+                        gradient: swiftUIGradient,
+                        center: UnitPoint(x: gradient.startPoint.x, y: gradient.startPoint.y),
+                        startRadius: 0,
+                        endRadius: size.width / 2
+                    )
+                )
+            case .angular:
+                gradientView = AnyView(
+                    AngularGradient(
+                        gradient: swiftUIGradient,
+                        center: UnitPoint(x: gradient.startPoint.x, y: gradient.startPoint.y)
+                    )
+                )
+            }
+            
+            // Render SwiftUI view to UIKit context
+            let controller = UIHostingController(rootView: gradientView)
+            controller.view.bounds = CGRect(origin: .zero, size: size)
+            controller.view.backgroundColor = .clear
+            
+            // Draw the view hierarchy
+            controller.view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+        }
     }
 }

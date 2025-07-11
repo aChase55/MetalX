@@ -1,17 +1,16 @@
 import UIKit
+import CoreGraphics
 
 enum TextFillType: Codable {
     case solid(UIColor)
-    case gradient(colors: [UIColor], startPoint: CGPoint, endPoint: CGPoint)
+    case gradient(MetalX.Gradient)  // Use MetalX namespace to avoid SwiftUI conflict
     case image(UIImage)
     case none // For outline-only text
     
     enum CodingKeys: String, CodingKey {
         case type
         case color
-        case colors
-        case startPoint
-        case endPoint
+        case gradient
         case imageData
     }
     
@@ -25,11 +24,12 @@ enum TextFillType: Codable {
             let color = try NSKeyedUnarchiver.unarchivedObject(ofClass: UIColor.self, from: colorData) ?? .white
             self = .solid(color)
         case "gradient":
-            let colorsData = try container.decode([Data].self, forKey: .colors)
-            let colors = colorsData.compactMap { try? NSKeyedUnarchiver.unarchivedObject(ofClass: UIColor.self, from: $0) }
-            let startPoint = try container.decode(CGPoint.self, forKey: .startPoint)
-            let endPoint = try container.decode(CGPoint.self, forKey: .endPoint)
-            self = .gradient(colors: colors, startPoint: startPoint, endPoint: endPoint)
+            let gradientData = try container.decode(Data.self, forKey: .gradient)
+            if let gradient = try? JSONDecoder().decode(MetalX.Gradient.self, from: gradientData) {
+                self = .gradient(gradient)
+            } else {
+                self = .solid(.white)
+            }
         case "image":
             let imageData = try container.decode(Data.self, forKey: .imageData)
             let image = UIImage(data: imageData) ?? UIImage()
@@ -49,12 +49,10 @@ enum TextFillType: Codable {
             try container.encode("solid", forKey: .type)
             let colorData = try NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: false)
             try container.encode(colorData, forKey: .color)
-        case .gradient(let colors, let startPoint, let endPoint):
+        case .gradient(let gradient):
             try container.encode("gradient", forKey: .type)
-            let colorsData = try colors.map { try NSKeyedArchiver.archivedData(withRootObject: $0, requiringSecureCoding: false) }
-            try container.encode(colorsData, forKey: .colors)
-            try container.encode(startPoint, forKey: .startPoint)
-            try container.encode(endPoint, forKey: .endPoint)
+            let gradientData = try JSONEncoder().encode(gradient)
+            try container.encode(gradientData, forKey: .gradient)
         case .image(let image):
             try container.encode("image", forKey: .type)
             let imageData = image.pngData() ?? Data()

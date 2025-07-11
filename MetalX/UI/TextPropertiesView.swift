@@ -9,9 +9,9 @@ struct TextPropertiesView: View {
     @State private var showingFontPicker = false
     @State private var selectedFontSize: CGFloat = 48
     @State private var showingImagePicker = false
-    @State private var gradientStartColor = Color.blue
-    @State private var gradientEndColor = Color.purple
+    @State private var gradientData = GradientData()
     @State private var lastSolidColor = Color.white
+    @State private var showingGradientEditor = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -139,12 +139,14 @@ struct TextPropertiesView: View {
                     })
                     
                     FillTypeButton(title: "Gradient", isSelected: isGradientFill, action: {
-                        textLayer.fillType = .gradient(
-                            colors: [UIColor(gradientStartColor), UIColor(gradientEndColor)],
-                            startPoint: CGPoint(x: 0, y: 0),
-                            endPoint: CGPoint(x: 1, y: 1)
-                        )
-                        canvas.setNeedsDisplay()
+                        if case .gradient = textLayer.fillType {
+                            // Already gradient, show editor
+                            showingGradientEditor = true
+                        } else {
+                            // Switch to gradient with default
+                            textLayer.fillType = .gradient(gradientData.toGradient())
+                            canvas.setNeedsDisplay()
+                        }
                     })
                     
                     FillTypeButton(title: "Image", isSelected: isImageFill, action: {
@@ -184,50 +186,26 @@ struct TextPropertiesView: View {
                         .labelsHidden()
                     }
                     
-                case .gradient(let colors, _, _):
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text("Start Color")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            ColorPicker("", selection: Binding(
-                                get: { 
-                                    if colors.count > 0 {
-                                        return Color(colors[0])
-                                    }
-                                    return gradientStartColor
-                                },
-                                set: { newColor in
-                                    gradientStartColor = newColor
-                                    updateGradient()
-                                }
-                            ))
-                            .labelsHidden()
-                        }
+                case .gradient(let gradient):
+                    VStack(spacing: 12) {
+                        // Gradient preview
+                        GradientPreview(gradientData: gradientData)
+                            .frame(height: 60)
+                            .cornerRadius(8)
                         
-                        HStack {
-                            Text("End Color")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            ColorPicker("", selection: Binding(
-                                get: { 
-                                    if colors.count > 1 {
-                                        return Color(colors[1])
-                                    }
-                                    return gradientEndColor
-                                },
-                                set: { newColor in
-                                    gradientEndColor = newColor
-                                    updateGradient()
-                                }
-                            ))
-                            .labelsHidden()
+                        // Edit gradient button
+                        Button(action: {
+                            showingGradientEditor = true
+                        }) {
+                            HStack {
+                                Image(systemName: "slider.horizontal.3")
+                                Text("Edit Gradient")
+                            }
+                            .font(.caption)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
                         }
                     }
                     
@@ -326,15 +304,16 @@ struct TextPropertiesView: View {
             switch textLayer.fillType {
             case .solid(let color):
                 lastSolidColor = Color(color)
-            case .gradient(let colors, _, _):
-                if colors.count > 0 {
-                    gradientStartColor = Color(colors[0])
-                }
-                if colors.count > 1 {
-                    gradientEndColor = Color(colors[1])
-                }
+            case .gradient(let gradient):
+                gradientData = GradientData(from: gradient)
             default:
                 break
+            }
+        }
+        .sheet(isPresented: $showingGradientEditor) {
+            GradientEditorView(gradientData: $gradientData) {
+                textLayer.fillType = .gradient(gradientData.toGradient())
+                canvas.setNeedsDisplay()
             }
         }
     }
@@ -368,15 +347,6 @@ struct TextPropertiesView: View {
         }
     }
     
-    // Helper methods
-    func updateGradient() {
-        textLayer.fillType = .gradient(
-            colors: [UIColor(gradientStartColor), UIColor(gradientEndColor)],
-            startPoint: CGPoint(x: 0, y: 0),
-            endPoint: CGPoint(x: 1, y: 1)
-        )
-        canvas.setNeedsDisplay()
-    }
 }
 
 // Fill type button component
