@@ -2,10 +2,10 @@ import SwiftUI
 
 struct SelectedLayerPill: View {
     @ObservedObject var canvas: Canvas
-    @State private var selectedTab: LayerPropertyTab = .position
-    @State private var showingPropertySheet = false
+    @State private var selectedTab: LayerPropertyTab?
     
-    enum LayerPropertyTab: String, CaseIterable {
+    enum LayerPropertyTab: String, CaseIterable, Identifiable {
+        var id: String { rawValue }
         case position = "Position"
         case fill = "Fill"
         case blend = "Blend"
@@ -72,8 +72,6 @@ struct SelectedLayerPill: View {
                     ForEach(availableTabs, id: \.self) { tab in
                         Button(action: {
                             selectedTab = tab
-                            showingPropertySheet = true
-                            print("Selected tab: \(tab.rawValue)")
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: tab.systemImage)
@@ -101,16 +99,16 @@ struct SelectedLayerPill: View {
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
-            .sheet(isPresented: $showingPropertySheet) {
+            .sheet(item: $selectedTab, content: { tab in
                 LayerPropertySheet(
                     canvas: canvas,
-                    selectedTab: selectedTab
+                    selectedTab: tab
                 )
                 .asSelfSizingSheet()
                 .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled)
                 .interactiveDismissDisabled(false)
-            }
+            })
         }
     }
 }
