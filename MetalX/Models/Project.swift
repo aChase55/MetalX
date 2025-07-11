@@ -114,6 +114,14 @@ struct TextLayerData: Codable, Hashable, Equatable {
     var fontName: String
     var textColor: CodableColor
     var alignment: String
+    
+    // New properties for advanced text features
+    var fillType: String?  // "solid", "gradient", "image", "none"
+    var gradientData: GradientSerializationData?
+    var imageData: Data?  // PNG/JPEG data for image fills
+    var hasOutline: Bool?
+    var outlineColor: CodableColor?
+    var outlineWidth: CGFloat?
 }
 
 struct ShapeLayerData: Codable, Hashable, Equatable {

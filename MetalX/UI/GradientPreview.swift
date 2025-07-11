@@ -6,11 +6,11 @@ struct GradientPreview: View {
     var body: some View {
         GeometryReader { geometry in
             Rectangle()
-                .fill(createSwiftUIGradient(in: geometry.size))
+                .fill(gradientShape(in: geometry.size))
         }
     }
     
-    private func createSwiftUIGradient(in size: CGSize) -> AnyShapeStyle {
+    private func gradientShape(in size: CGSize) -> AnyShapeStyle {
         let stops = zip(gradientData.colors, gradientData.locations).map { color, location in
             SwiftUI.Gradient.Stop(color: color, location: CGFloat(location))
         }

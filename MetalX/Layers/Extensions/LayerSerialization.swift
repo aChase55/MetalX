@@ -125,13 +125,55 @@ extension ImageLayer {
 
 extension TextLayer {
     func toTextData() -> TextLayerData {
+        // Serialize fill type
+        var fillTypeString: String?
+        var gradientData: GradientSerializationData?
+        var imageData: Data?
+        
+        switch fillType {
+        case .solid:
+            fillTypeString = "solid"
+        case .gradient(let gradient):
+            fillTypeString = "gradient"
+            gradientData = GradientSerializationData(
+                type: gradientTypeString(gradient.type),
+                colorStops: gradient.colorStops.map { stop in
+                    ColorStopData(
+                        color: CodableColor(cgColor: stop.color),
+                        location: stop.location
+                    )
+                },
+                startPoint: gradient.startPoint,
+                endPoint: gradient.endPoint
+            )
+        case .image(let image):
+            fillTypeString = "image"
+            imageData = image.pngData()
+        case .none:
+            fillTypeString = "none"
+        }
+        
         return TextLayerData(
             text: text,
             fontSize: font.pointSize,
             fontName: font.fontName,
             textColor: CodableColor(cgColor: textColor.cgColor),
-            alignment: "center" // TODO: Add alignment property to TextLayer
+            alignment: "center", // TODO: Add alignment property to TextLayer
+            fillType: fillTypeString,
+            gradientData: gradientData,
+            imageData: imageData,
+            hasOutline: hasOutline,
+            outlineColor: hasOutline ? CodableColor(cgColor: outlineColor.cgColor) : nil,
+            outlineWidth: hasOutline ? outlineWidth : nil
         )
+    }
+    
+    private func gradientTypeString(_ type: MetalX.Gradient.GradientType) -> String {
+        switch type {
+        case .linear: return "linear"
+        case .radial: return "radial"
+        case .angular: return "angular"
+        }
     }
 }
 
@@ -277,8 +319,51 @@ class LayerFactory {
         
         let layer = TextLayer(text: textData.text)
         layer.font = UIFont(name: textData.fontName, size: textData.fontSize) ?? UIFont.systemFont(ofSize: textData.fontSize)
-        layer.textColor = UIColor(cgColor: textData.textColor.cgColor)
+        
+        // Load fill type
+        if let fillTypeString = textData.fillType {
+            switch fillTypeString {
+            case "solid":
+                layer.fillType = .solid(UIColor(cgColor: textData.textColor.cgColor))
+            case "gradient":
+                if let gradientData = textData.gradientData {
+                    layer.fillType = .gradient(loadGradient(from: gradientData))
+                }
+            case "image":
+                if let imageData = textData.imageData,
+                   let image = UIImage(data: imageData) {
+                    layer.fillType = .image(image)
+                }
+            case "none":
+                layer.fillType = .none
+            default:
+                layer.fillType = .solid(UIColor(cgColor: textData.textColor.cgColor))
+            }
+        } else {
+            // Legacy support - use textColor as solid fill
+            layer.fillType = .solid(UIColor(cgColor: textData.textColor.cgColor))
+        }
+        
+        // Load outline properties
+        if let hasOutline = textData.hasOutline {
+            layer.hasOutline = hasOutline
+            if hasOutline,
+               let outlineColor = textData.outlineColor {
+                layer.outlineColor = UIColor(cgColor: outlineColor.cgColor)
+            }
+            if hasOutline,
+               let outlineWidth = textData.outlineWidth {
+                layer.outlineWidth = outlineWidth
+            }
+        }
+        
         applyCommonProperties(to: layer, from: data)
+        
+        // Delay texture update to ensure it happens after layer is added to canvas
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            layer.forceUpdateTexture()
+        }
+        
         return layer
     }
     
@@ -571,6 +656,11 @@ extension Canvas {
             if let layer = LayerFactory.createLayer(from: layerData) {
                 addLayer(layer)
             }
+        }
+        
+        // Force display update after loading all layers
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.setNeedsDisplay()
         }
         
         // Load canvas effects
