@@ -28,6 +28,24 @@ class TextLayer: BaseLayer {
         }
     }
     
+    var hasOutline: Bool = false {
+        didSet {
+            updateTexture()
+        }
+    }
+    
+    var outlineColor: UIColor = .black {
+        didSet {
+            updateTexture()
+        }
+    }
+    
+    var outlineWidth: CGFloat = 2.0 {
+        didSet {
+            updateTexture()
+        }
+    }
+    
     private(set) var texture: MTLTexture?
     private var textRenderer: SimpleTextRenderer?
     private var device: MTLDevice?
@@ -54,7 +72,10 @@ class TextLayer: BaseLayer {
             text: text,
             font: font,
             color: textColor,
-            maxWidth: 800 // Max width for text wrapping
+            maxWidth: 800, // Max width for text wrapping
+            hasOutline: hasOutline,
+            outlineColor: outlineColor,
+            outlineWidth: outlineWidth
         )
         
         if let texture = texture {

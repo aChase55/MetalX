@@ -11,6 +11,7 @@ struct SelectedLayerPill: View {
         case blend = "Blend"
         case shadow = "Shadow"
         case effects = "Effects"
+        case text = "Text"
         
         var systemImage: String {
             switch self {
@@ -19,6 +20,7 @@ struct SelectedLayerPill: View {
             case .blend: return "rectangle.stack"
             case .shadow: return "shadow"
             case .effects: return "wand.and.stars"
+            case .text: return "textformat"
             }
         }
     }
@@ -30,11 +32,15 @@ struct SelectedLayerPill: View {
     var availableTabs: [LayerPropertyTab] {
         guard let layer = selectedLayer else { return LayerPropertyTab.allCases }
         
-        // Hide Fill tab for ImageLayers
+        // Customize tabs based on layer type
         if layer is ImageLayer {
             return [.position, .blend, .shadow, .effects]
+        } else if layer is TextLayer {
+            return [.position, .text, .blend, .shadow, .effects]
+        } else if layer is VectorShapeLayer {
+            return [.position, .fill, .blend, .shadow, .effects]
         }
-        return LayerPropertyTab.allCases
+        return [.position, .blend, .shadow, .effects]
     }
     
     var body: some View {
@@ -166,6 +172,8 @@ struct LayerPropertySheet: View {
                     shadowControls(for: layer)
                 case .effects:
                     effectsControls(for: layer)
+                case .text:
+                    textControls(for: layer)
                 }
             }
         }
@@ -610,6 +618,18 @@ struct LayerPropertySheet: View {
     @ViewBuilder
     private func effectsControls(for layer: any Layer) -> some View {
         EffectsControlView(effectStack: layer.effectStack)
+    }
+    
+    @ViewBuilder
+    private func textControls(for layer: any Layer) -> some View {
+        if let textLayer = layer as? TextLayer {
+            TextPropertiesView(textLayer: textLayer, canvas: canvas)
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Text properties are not available for this layer type.")
+                    .foregroundColor(.secondary)
+            }
+        }
     }
 }
 

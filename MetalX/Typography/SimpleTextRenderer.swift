@@ -12,7 +12,7 @@ class SimpleTextRenderer {
     }
     
     // Create texture from text using Core Graphics (temporary solution)
-    func createTextTexture(text: String, font: UIFont, color: UIColor, maxWidth: CGFloat) -> MTLTexture? {
+    func createTextTexture(text: String, font: UIFont, color: UIColor, maxWidth: CGFloat, hasOutline: Bool = false, outlineColor: UIColor = .black, outlineWidth: CGFloat = 2.0) -> MTLTexture? {
         // Render at 2x resolution for better quality when scaled
         let scale: CGFloat = 2.0
         
@@ -63,9 +63,23 @@ class SimpleTextRenderer {
         context.fill(CGRect(origin: .zero, size: textureSize))
         
         // Draw text with proper context setup
-        context.setTextDrawingMode(.fill)
         UIGraphicsPushContext(context)
-        attributedString.draw(at: CGPoint(x: padding, y: padding))
+        
+        if hasOutline {
+            // Draw outline first
+            let outlineAttributes: [NSAttributedString.Key: Any] = [
+                .font: scaledFont,
+                .strokeColor: outlineColor,
+                .strokeWidth: -(outlineWidth * scale), // Negative for both stroke and fill
+                .foregroundColor: color
+            ]
+            let outlinedString = NSAttributedString(string: text, attributes: outlineAttributes)
+            outlinedString.draw(at: CGPoint(x: padding, y: padding))
+        } else {
+            // Draw regular text
+            attributedString.draw(at: CGPoint(x: padding, y: padding))
+        }
+        
         UIGraphicsPopContext()
         
         // Create texture from context
