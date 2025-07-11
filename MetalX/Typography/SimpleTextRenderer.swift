@@ -11,22 +11,22 @@ class SimpleTextRenderer {
         self.device = device
     }
     
-    // Create texture from text using Core Graphics (temporary solution)
-    func createTextTexture(text: String, font: UIFont, color: UIColor, maxWidth: CGFloat, hasOutline: Bool = false, outlineColor: UIColor = .black, outlineWidth: CGFloat = 2.0) -> MTLTexture? {
+    // Create texture from text using Core Graphics
+    func createTextTexture(text: String, font: UIFont, fillType: TextFillType, maxWidth: CGFloat, hasOutline: Bool = false, outlineColor: UIColor = .black, outlineWidth: CGFloat = 2.0) -> MTLTexture? {
         // Render at 2x resolution for better quality when scaled
         let scale: CGFloat = 2.0
         
         // Create larger font for high-res rendering
         let scaledFont = font.withSize(font.pointSize * scale)
         
-        // Calculate text size
-        let attributes: [NSAttributedString.Key: Any] = [
+        // Calculate text size using a temporary color for sizing
+        let tempAttributes: [NSAttributedString.Key: Any] = [
             .font: scaledFont,
-            .foregroundColor: color
+            .foregroundColor: UIColor.black
         ]
         
-        let attributedString = NSAttributedString(string: text, attributes: attributes)
-        let textSize = attributedString.boundingRect(
+        let sizingString = NSAttributedString(string: text, attributes: tempAttributes)
+        let textSize = sizingString.boundingRect(
             with: CGSize(width: maxWidth * scale, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             context: nil
@@ -65,19 +65,110 @@ class SimpleTextRenderer {
         // Draw text with proper context setup
         UIGraphicsPushContext(context)
         
-        if hasOutline {
-            // Draw outline first
-            let outlineAttributes: [NSAttributedString.Key: Any] = [
+        // Prepare drawing position
+        let drawPoint = CGPoint(x: padding, y: padding)
+        
+        switch fillType {
+        case .solid(let color):
+            if hasOutline {
+                // For outline with solid fill
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: scaledFont,
+                    .strokeColor: outlineColor,
+                    .strokeWidth: -(outlineWidth * scale), // Negative for both stroke and fill
+                    .foregroundColor: color
+                ]
+                let string = NSAttributedString(string: text, attributes: attributes)
+                string.draw(at: drawPoint)
+            } else {
+                // Regular solid text
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: scaledFont,
+                    .foregroundColor: color
+                ]
+                let string = NSAttributedString(string: text, attributes: attributes)
+                string.draw(at: drawPoint)
+            }
+            
+        case .none:
+            // Outline only (no fill)
+            let attributes: [NSAttributedString.Key: Any] = [
                 .font: scaledFont,
                 .strokeColor: outlineColor,
-                .strokeWidth: -(outlineWidth * scale), // Negative for both stroke and fill
-                .foregroundColor: color
+                .strokeWidth: outlineWidth * scale, // Positive for stroke only
+                .foregroundColor: UIColor.clear
             ]
-            let outlinedString = NSAttributedString(string: text, attributes: outlineAttributes)
-            outlinedString.draw(at: CGPoint(x: padding, y: padding))
-        } else {
-            // Draw regular text
-            attributedString.draw(at: CGPoint(x: padding, y: padding))
+            let string = NSAttributedString(string: text, attributes: attributes)
+            string.draw(at: drawPoint)
+            
+        case .gradient(let colors, let startPoint, let endPoint):
+            // Create gradient
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let cgColors = colors.map { $0.cgColor }
+            
+            if let gradient = CGGradient(colorsSpace: colorSpace, colors: cgColors as CFArray, locations: nil) {
+                context.saveGState()
+                
+                // Draw text to create clipping mask
+                context.setTextDrawingMode(.clip)
+                let attributes: [NSAttributedString.Key: Any] = [.font: scaledFont]
+                let string = NSAttributedString(string: text, attributes: attributes)
+                string.draw(at: drawPoint)
+                
+                // Draw gradient
+                let gradientStart = CGPoint(
+                    x: padding + textSize.width * startPoint.x, 
+                    y: padding + textSize.height * startPoint.y
+                )
+                let gradientEnd = CGPoint(
+                    x: padding + textSize.width * endPoint.x, 
+                    y: padding + textSize.height * endPoint.y
+                )
+                context.drawLinearGradient(gradient, start: gradientStart, end: gradientEnd, options: [])
+                
+                context.restoreGState()
+                
+                // Draw outline if needed
+                if hasOutline {
+                    let outlineAttributes: [NSAttributedString.Key: Any] = [
+                        .font: scaledFont,
+                        .strokeColor: outlineColor,
+                        .strokeWidth: outlineWidth * scale,
+                        .foregroundColor: UIColor.clear
+                    ]
+                    let outlineString = NSAttributedString(string: text, attributes: outlineAttributes)
+                    outlineString.draw(at: drawPoint)
+                }
+            }
+            
+        case .image(let image):
+            if let cgImage = image.cgImage {
+                context.saveGState()
+                
+                // Draw text to create clipping mask
+                context.setTextDrawingMode(.clip)
+                let attributes: [NSAttributedString.Key: Any] = [.font: scaledFont]
+                let string = NSAttributedString(string: text, attributes: attributes)
+                string.draw(at: drawPoint)
+                
+                // Draw image
+                let drawRect = CGRect(x: padding, y: padding, width: textSize.width, height: textSize.height)
+                context.draw(cgImage, in: drawRect)
+                
+                context.restoreGState()
+                
+                // Draw outline if needed
+                if hasOutline {
+                    let outlineAttributes: [NSAttributedString.Key: Any] = [
+                        .font: scaledFont,
+                        .strokeColor: outlineColor,
+                        .strokeWidth: outlineWidth * scale,
+                        .foregroundColor: UIColor.clear
+                    ]
+                    let outlineString = NSAttributedString(string: text, attributes: outlineAttributes)
+                    outlineString.draw(at: drawPoint)
+                }
+            }
         }
         
         UIGraphicsPopContext()

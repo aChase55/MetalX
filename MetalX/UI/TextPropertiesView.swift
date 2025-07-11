@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TextPropertiesView: View {
     let textLayer: TextLayer
@@ -7,6 +8,9 @@ struct TextPropertiesView: View {
     @State private var isEditingText = false
     @State private var showingFontPicker = false
     @State private var selectedFontSize: CGFloat = 48
+    @State private var showingImagePicker = false
+    @State private var gradientStartColor = Color.blue
+    @State private var gradientEndColor = Color.purple
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -17,14 +21,17 @@ struct TextPropertiesView: View {
                     .foregroundColor(.secondary)
                 
                 if isEditingText {
-                    HStack {
-                        TextField("Enter text", text: $editingText)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .onSubmit {
-                                textLayer.text = editingText
-                                canvas.setNeedsDisplay()
-                                isEditingText = false
-                            }
+                    VStack(alignment: .trailing, spacing: 8) {
+                        TextEditor(text: $editingText)
+                            .frame(minHeight: 60, maxHeight: 120)
+                            .padding(4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            )
+                            .scrollContentBackground(.hidden)
+                            .background(Color.gray.opacity(0.05))
+                            .cornerRadius(8)
                         
                         Button("Done") {
                             textLayer.text = editingText
@@ -36,8 +43,9 @@ struct TextPropertiesView: View {
                 } else {
                     HStack {
                         Text(textLayer.text)
-                            .lineLimit(1)
+                            .lineLimit(3)
                             .truncationMode(.tail)
+                            .fixedSize(horizontal: false, vertical: true)
                         
                         Spacer()
                         
@@ -116,22 +124,123 @@ struct TextPropertiesView: View {
             
             Divider()
             
-            // Text color
-            HStack {
-                Text("Text Color")
+            // Text Fill Type
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Fill Type")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                Spacer()
-                
-                ColorPicker("", selection: Binding(
-                    get: { Color(textLayer.textColor) },
-                    set: { newColor in
-                        textLayer.textColor = UIColor(newColor)
+                // Fill type selector
+                HStack(spacing: 12) {
+                    FillTypeButton(title: "Solid", isSelected: isSolidFill, action: {
+                        textLayer.fillType = .solid(textLayer.textColor)
                         canvas.setNeedsDisplay()
+                    })
+                    
+                    FillTypeButton(title: "Gradient", isSelected: isGradientFill, action: {
+                        textLayer.fillType = .gradient(
+                            colors: [UIColor(gradientStartColor), UIColor(gradientEndColor)],
+                            startPoint: CGPoint(x: 0, y: 0),
+                            endPoint: CGPoint(x: 1, y: 1)
+                        )
+                        canvas.setNeedsDisplay()
+                    })
+                    
+                    FillTypeButton(title: "Image", isSelected: isImageFill, action: {
+                        showingImagePicker = true
+                    })
+                    
+                    FillTypeButton(title: "None", isSelected: isNoFill, action: {
+                        textLayer.fillType = .none
+                        canvas.setNeedsDisplay()
+                    })
+                }
+                
+                // Fill-specific controls
+                switch textLayer.fillType {
+                case .solid(let color):
+                    HStack {
+                        Text("Color")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        ColorPicker("", selection: Binding(
+                            get: { Color(color) },
+                            set: { newColor in
+                                textLayer.fillType = .solid(UIColor(newColor))
+                                canvas.setNeedsDisplay()
+                            }
+                        ))
+                        .labelsHidden()
                     }
-                ))
-                .labelsHidden()
+                    
+                case .gradient(let colors, _, _):
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Start Color")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            ColorPicker("", selection: Binding(
+                                get: { 
+                                    if colors.count > 0 {
+                                        return Color(colors[0])
+                                    }
+                                    return gradientStartColor
+                                },
+                                set: { newColor in
+                                    gradientStartColor = newColor
+                                    updateGradient()
+                                }
+                            ))
+                            .labelsHidden()
+                        }
+                        
+                        HStack {
+                            Text("End Color")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            ColorPicker("", selection: Binding(
+                                get: { 
+                                    if colors.count > 1 {
+                                        return Color(colors[1])
+                                    }
+                                    return gradientEndColor
+                                },
+                                set: { newColor in
+                                    gradientEndColor = newColor
+                                    updateGradient()
+                                }
+                            ))
+                            .labelsHidden()
+                        }
+                    }
+                    
+                case .image:
+                    Button(action: { showingImagePicker = true }) {
+                        HStack {
+                            Image(systemName: "photo")
+                            Text("Change Image")
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                case .none:
+                    Text("Text will be outline only")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             // Text outline
@@ -144,51 +253,115 @@ struct TextPropertiesView: View {
                     }
                 ))
                 
-                if textLayer.hasOutline {
-                    // Outline color
+                // Outline color - always visible
+                HStack {
+                    Text("Outline Color")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    ColorPicker("", selection: Binding(
+                        get: { Color(textLayer.outlineColor) },
+                        set: { newColor in
+                            textLayer.outlineColor = UIColor(newColor)
+                            canvas.setNeedsDisplay()
+                        }
+                    ))
+                    .labelsHidden()
+                }
+                
+                // Outline width - always visible
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Outline Color")
+                        Text("Outline Width")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
                         Spacer()
-                        
-                        ColorPicker("", selection: Binding(
-                            get: { Color(textLayer.outlineColor) },
-                            set: { newColor in
-                                textLayer.outlineColor = UIColor(newColor)
-                                canvas.setNeedsDisplay()
-                            }
-                        ))
-                        .labelsHidden()
+                        Text(String(format: "%.1f", textLayer.outlineWidth))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     
-                    // Outline width
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Outline Width")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(String(format: "%.1f", textLayer.outlineWidth))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    Slider(value: Binding(
+                        get: { textLayer.outlineWidth },
+                        set: { newWidth in
+                            textLayer.outlineWidth = newWidth
+                            canvas.setNeedsDisplay()
                         }
-                        
-                        Slider(value: Binding(
-                            get: { textLayer.outlineWidth },
-                            set: { newWidth in
-                                textLayer.outlineWidth = newWidth
-                                canvas.setNeedsDisplay()
-                            }
-                        ), in: 0.5...10)
-                        .accentColor(.blue)
-                    }
+                    ), in: 0.5...10)
+                    .accentColor(.blue)
                 }
             }
         }
         .sheet(isPresented: $showingFontPicker) {
             FontPickerView(textLayer: textLayer, canvas: canvas)
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: Binding(
+                get: { 
+                    if case .image(let img) = textLayer.fillType {
+                        return img
+                    }
+                    return nil
+                },
+                set: { newImage in
+                    if let image = newImage {
+                        textLayer.fillType = .image(image)
+                        canvas.setNeedsDisplay()
+                    }
+                }
+            ))
+        }
+    }
+    
+    // Helper properties
+    var isSolidFill: Bool {
+        if case .solid = textLayer.fillType { return true }
+        return false
+    }
+    
+    var isGradientFill: Bool {
+        if case .gradient = textLayer.fillType { return true }
+        return false
+    }
+    
+    var isImageFill: Bool {
+        if case .image = textLayer.fillType { return true }
+        return false
+    }
+    
+    var isNoFill: Bool {
+        if case .none = textLayer.fillType { return true }
+        return false
+    }
+    
+    // Helper methods
+    func updateGradient() {
+        textLayer.fillType = .gradient(
+            colors: [UIColor(gradientStartColor), UIColor(gradientEndColor)],
+            startPoint: CGPoint(x: 0, y: 0),
+            endPoint: CGPoint(x: 1, y: 1)
+        )
+        canvas.setNeedsDisplay()
+    }
+}
+
+// Fill type button component
+struct FillTypeButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(8)
         }
     }
 }

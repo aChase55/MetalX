@@ -392,7 +392,10 @@ struct LayerPropertySheet: View {
         } else if let textLayer = layer as? TextLayer {
             let copy = TextLayer(text: textLayer.text)
             copy.font = textLayer.font
-            copy.textColor = textLayer.textColor
+            copy.fillType = textLayer.fillType
+            copy.hasOutline = textLayer.hasOutline
+            copy.outlineColor = textLayer.outlineColor
+            copy.outlineWidth = textLayer.outlineWidth
             copy.name = "\(textLayer.name) Copy"
             newLayer = copy
         }

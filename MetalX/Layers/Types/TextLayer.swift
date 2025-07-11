@@ -16,9 +16,24 @@ class TextLayer: BaseLayer {
         }
     }
     
-    var textColor: UIColor = .white {
+    var fillType: TextFillType = .solid(.white) {
         didSet {
             updateTexture()
+        }
+    }
+    
+    // Convenience property for backward compatibility
+    var textColor: UIColor {
+        get {
+            switch fillType {
+            case .solid(let color):
+                return color
+            default:
+                return .white
+            }
+        }
+        set {
+            fillType = .solid(newValue)
         }
     }
     
@@ -71,7 +86,7 @@ class TextLayer: BaseLayer {
         texture = textRenderer.createTextTexture(
             text: text,
             font: font,
-            color: textColor,
+            fillType: fillType,
             maxWidth: 800, // Max width for text wrapping
             hasOutline: hasOutline,
             outlineColor: outlineColor,
