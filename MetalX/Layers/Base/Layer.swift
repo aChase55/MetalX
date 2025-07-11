@@ -65,6 +65,7 @@ protocol Layer: AnyObject, Identifiable {
     var bounds: CGRect { get }
     var zIndex: Int { get set }
     var dropShadow: DropShadow { get set }
+    var effectStack: EffectStack { get set }
     
     // Rendering
     func render(context: RenderContext) -> MTLTexture?
@@ -84,6 +85,14 @@ class BaseLayer: Layer {
     var bounds: CGRect = .zero
     var zIndex: Int = 0
     var dropShadow = DropShadow()
+    lazy var effectStack: EffectStack = {
+        let stack = EffectStack()
+        stack.onUpdate = { [weak self] in
+            // Notify canvas of changes
+            NotificationCenter.default.post(name: NSNotification.Name("CanvasNeedsDisplay"), object: nil)
+        }
+        return stack
+    }()
     
     func render(context: RenderContext) -> MTLTexture? {
         // Override in subclasses

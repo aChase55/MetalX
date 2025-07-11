@@ -168,6 +168,15 @@ class MetalXRenderer {
             swap(&currentTexture, &targetTexture)
         }
         
+        // Apply canvas effects if any
+        if !canvas.effectStack.effects.isEmpty {
+            currentTexture = canvas.effectStack.applyEffects(
+                to: currentTexture,
+                commandBuffer: commandBuffer,
+                device: device
+            ) ?? currentTexture
+        }
+        
         // Final pass: copy result to drawable
         if let finalEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) {
             quadRenderer?.render(
@@ -283,20 +292,31 @@ class MetalXRenderer {
     // MARK: - Helper Methods
     
     private func getLayerTexture(_ layer: any Layer) -> MTLTexture? {
+        var texture: MTLTexture?
+        
         if let imageLayer = layer as? ImageLayer {
-            return imageLayer.texture
+            texture = imageLayer.texture
         } else if let textLayer = layer as? TextLayer {
-            return textLayer.texture
+            texture = textLayer.texture
         } else if let shapeLayer = layer as? VectorShapeLayer {
             if let context = sharedRenderContext {
-                return shapeLayer.render(context: context)
+                texture = shapeLayer.render(context: context)
             }
         } else if let shadowLayer = layer as? ShadowLayer {
             if let context = sharedRenderContext {
-                return shadowLayer.render(context: context)
+                texture = shadowLayer.render(context: context)
             }
         }
-        return nil
+        
+        // Apply layer effects if any
+        if let baseTexture = texture, !layer.effectStack.effects.isEmpty {
+            guard let commandBuffer = commandQueue?.makeCommandBuffer() else { return texture }
+            texture = layer.effectStack.applyEffects(to: baseTexture, commandBuffer: commandBuffer, device: device)
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+        }
+        
+        return texture
     }
     
     func calculateTransformMatrix(for layer: any Layer, canvasSize: CGSize) -> simd_float4x4 {

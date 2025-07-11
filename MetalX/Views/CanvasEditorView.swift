@@ -15,6 +15,7 @@ struct CanvasEditorView: View {
     @State private var showingAddMenu = false
     @State private var showingExportView = false
     @State private var showingStickerPicker = false
+    @State private var showingCanvasEffects = false
     
     // Auto-save timer
     let saveTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
@@ -51,6 +52,17 @@ struct CanvasEditorView: View {
                     .padding()
                     
                     Spacer()
+                    
+                    // Canvas effects button
+                    Button(action: { showingCanvasEffects.toggle() }) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.black.opacity(0.7))
+                            .clipShape(Circle())
+                    }
+                    .padding()
                     
                     // Add content button
                     Button(action: { showingAddMenu.toggle() }) {
@@ -206,6 +218,10 @@ struct CanvasEditorView: View {
         }
         .sheet(isPresented: $showingStickerPicker) {
             StickerPickerView(canvas: canvas, isPresented: $showingStickerPicker)
+        }
+        .sheet(isPresented: $showingCanvasEffects) {
+            CanvasEffectsView(canvas: canvas, isPresented: $showingCanvasEffects)
+                .asSelfSizingSheet()
         }
         .onChange(of: selectedItem) { _, newImage in
             Task {

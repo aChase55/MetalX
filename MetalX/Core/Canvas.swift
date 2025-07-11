@@ -10,6 +10,13 @@ class Canvas: ObservableObject {
     // Canvas properties
     var size: CGSize = CGSize(width: 1024, height: 1024)
     var backgroundColor: CGColor = CGColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+    lazy var effectStack: EffectStack = {
+        let stack = EffectStack()
+        stack.onUpdate = { [weak self] in
+            self?.needsDisplay = true
+        }
+        return stack
+    }()
     
     // Change tracking
     private var isDirty = true // Start with true to ensure initial render

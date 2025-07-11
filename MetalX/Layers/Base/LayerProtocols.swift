@@ -5,7 +5,7 @@ import CoreGraphics
 // MARK: - Effect Support
 
 protocol EffectableLayer: Layer {
-    var effects: [Effect] { get set }
+    var effectStack: EffectStack { get set }
     func applyEffects(to texture: MTLTexture, context: RenderContext) -> MTLTexture?
 }
 
@@ -68,18 +68,6 @@ protocol GroupLayer: AnyObject, Layer {
     func addChild(_ layer: any Layer)
     func removeChild(_ layer: any Layer)
     func reorderChild(_ layer: any Layer, to index: Int)
-}
-
-// MARK: - Effect Protocol
-
-protocol Effect: AnyObject {
-    var id: UUID { get }
-    var name: String { get }
-    var enabled: Bool { get set }
-    var intensity: Float { get set }
-    
-    func apply(to texture: MTLTexture, context: RenderContext) -> MTLTexture?
-    func requiredTexturePasses() -> Int
 }
 
 // MARK: - Extended Layer Protocol

@@ -10,6 +10,7 @@ struct SelectedLayerPill: View {
         case fill = "Fill"
         case blend = "Blend"
         case shadow = "Shadow"
+        case effects = "Effects"
         
         var systemImage: String {
             switch self {
@@ -17,6 +18,7 @@ struct SelectedLayerPill: View {
             case .fill: return "paintbrush.fill"
             case .blend: return "rectangle.stack"
             case .shadow: return "shadow"
+            case .effects: return "wand.and.stars"
             }
         }
     }
@@ -30,7 +32,7 @@ struct SelectedLayerPill: View {
         
         // Hide Fill tab for ImageLayers
         if layer is ImageLayer {
-            return [.position, .blend, .shadow]
+            return [.position, .blend, .shadow, .effects]
         }
         return LayerPropertyTab.allCases
     }
@@ -164,6 +166,8 @@ struct LayerPropertySheet: View {
                     blendControls(for: layer)
                 case .shadow:
                     shadowControls(for: layer)
+                case .effects:
+                    effectsControls(for: layer)
                 }
             }
         }
@@ -603,6 +607,11 @@ struct LayerPropertySheet: View {
                 }
             }
         }
+    }
+    
+    @ViewBuilder
+    private func effectsControls(for layer: any Layer) -> some View {
+        EffectsControlView(effectStack: layer.effectStack, useNavigation: false)
     }
 }
 
