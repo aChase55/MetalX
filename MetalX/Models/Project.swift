@@ -12,6 +12,7 @@ struct MetalXProject: Codable, Hashable, Equatable {
     var canvasSize: CGSize
     var backgroundColor: CodableColor
     var layers: [LayerData]
+    var canvasEffects: [EffectData]?
     
     // Version for future migration support
     let formatVersion: String = "1.0"
@@ -40,6 +41,7 @@ struct LayerData: Codable, Hashable, Equatable {
     var blendMode: String
     var bounds: CGRect
     var dropShadow: DropShadowData?
+    var effects: [EffectData]?
     
     // Type-specific data
     var imageData: ImageLayerData?
@@ -60,6 +62,15 @@ struct DropShadowData: Codable, Hashable, Equatable {
     var color: CodableColor
     var opacity: Float
     var scale: CGFloat = 1.0
+}
+
+struct EffectData: Codable, Hashable, Equatable {
+    var id: String
+    var name: String
+    var type: String
+    var isEnabled: Bool
+    var intensity: Float
+    var parameters: [String: Float]
 }
 
 struct LayerTransformData: Codable, Hashable, Equatable {

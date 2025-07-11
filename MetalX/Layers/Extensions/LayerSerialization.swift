@@ -29,7 +29,8 @@ extension Layer {
                 color: CodableColor(cgColor: dropShadow.color),
                 opacity: dropShadow.opacity,
                 scale: dropShadow.scale
-            ) : nil
+            ) : nil,
+            effects: serializeEffects()
         )
         
         // Add type-specific data
@@ -42,6 +43,30 @@ extension Layer {
         }
         
         return data
+    }
+    
+    private func serializeEffects() -> [EffectData] {
+        return effectStack.effects.map { effect in
+            var parameters: [String: Float] = [:]
+            
+            if let brightnessEffect = effect as? BrightnessContrastEffect {
+                parameters["brightness"] = brightnessEffect.brightness
+                parameters["contrast"] = brightnessEffect.contrast
+            } else if let hueEffect = effect as? HueSaturationEffect {
+                parameters["hueShift"] = hueEffect.hueShift
+                parameters["saturation"] = hueEffect.saturation
+                parameters["lightness"] = hueEffect.lightness
+            }
+            
+            return EffectData(
+                id: effect.id.uuidString,
+                name: effect.name,
+                type: String(describing: type(of: effect)),
+                isEnabled: effect.isEnabled,
+                intensity: effect.intensity,
+                parameters: parameters
+            )
+        }
     }
     
     private var layerType: LayerData.LayerType {
@@ -344,6 +369,41 @@ class LayerFactory {
                 scale: shadowData.scale
             )
         }
+        
+        // Load effects
+        if let effectsData = data.effects {
+            for effectData in effectsData {
+                if let effect = createEffect(from: effectData) {
+                    layer.effectStack.addEffect(effect)
+                }
+            }
+        }
+    }
+    
+    static func createEffect(from data: EffectData) -> Effect? {
+        let effect: Effect?
+        
+        if data.type.contains("BrightnessContrastEffect") {
+            let brightnessEffect = BrightnessContrastEffect()
+            brightnessEffect.brightness = data.parameters["brightness"] ?? 0.0
+            brightnessEffect.contrast = data.parameters["contrast"] ?? 1.0
+            effect = brightnessEffect
+        } else if data.type.contains("HueSaturationEffect") {
+            let hueEffect = HueSaturationEffect()
+            hueEffect.hueShift = data.parameters["hueShift"] ?? 0.0
+            hueEffect.saturation = data.parameters["saturation"] ?? 1.0
+            hueEffect.lightness = data.parameters["lightness"] ?? 0.0
+            effect = hueEffect
+        } else {
+            return nil
+        }
+        
+        if let effect = effect {
+            effect.isEnabled = data.isEnabled
+            effect.intensity = data.intensity
+        }
+        
+        return effect
     }
 }
 
@@ -361,7 +421,35 @@ extension Canvas {
             }
             return layer.toLayerData()
         }
+        
+        // Save canvas effects
+        project.canvasEffects = serializeCanvasEffects()
+        
         return project
+    }
+    
+    private func serializeCanvasEffects() -> [EffectData] {
+        return effectStack.effects.map { effect in
+            var parameters: [String: Float] = [:]
+            
+            if let brightnessEffect = effect as? BrightnessContrastEffect {
+                parameters["brightness"] = brightnessEffect.brightness
+                parameters["contrast"] = brightnessEffect.contrast
+            } else if let hueEffect = effect as? HueSaturationEffect {
+                parameters["hueShift"] = hueEffect.hueShift
+                parameters["saturation"] = hueEffect.saturation
+                parameters["lightness"] = hueEffect.lightness
+            }
+            
+            return EffectData(
+                id: effect.id.uuidString,
+                name: effect.name,
+                type: String(describing: type(of: effect)),
+                isEnabled: effect.isEnabled,
+                intensity: effect.intensity,
+                parameters: parameters
+            )
+        }
     }
     
     func loadFromProject(_ project: MetalXProject) {
@@ -388,6 +476,15 @@ extension Canvas {
         for layerData in project.layers {
             if let layer = LayerFactory.createLayer(from: layerData) {
                 addLayer(layer)
+            }
+        }
+        
+        // Load canvas effects
+        if let canvasEffects = project.canvasEffects {
+            for effectData in canvasEffects {
+                if let effect = LayerFactory.createEffect(from: effectData) {
+                    effectStack.addEffect(effect)
+                }
             }
         }
         

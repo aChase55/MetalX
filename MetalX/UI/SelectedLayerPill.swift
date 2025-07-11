@@ -611,7 +611,7 @@ struct LayerPropertySheet: View {
     
     @ViewBuilder
     private func effectsControls(for layer: any Layer) -> some View {
-        EffectsControlView(effectStack: layer.effectStack, useNavigation: false)
+        EffectsControlView(effectStack: layer.effectStack)
     }
 }
 
