@@ -102,72 +102,72 @@ class SimpleTextRenderer {
             string.draw(at: drawPoint)
             
         case .gradient(let colors, let startPoint, let endPoint):
-            // Create gradient
-            let colorSpace = CGColorSpaceCreateDeviceRGB()
-            let cgColors = colors.map { $0.cgColor }
+            // Create gradient layer
+            let gradientLayer = CAGradientLayer()
+            gradientLayer.frame = CGRect(origin: .zero, size: textureSize)
+            gradientLayer.colors = colors.map { $0.cgColor }
+            gradientLayer.startPoint = startPoint
+            gradientLayer.endPoint = endPoint
             
-            if let gradient = CGGradient(colorsSpace: colorSpace, colors: cgColors as CFArray, locations: nil) {
-                context.saveGState()
+            // Render gradient to image
+            UIGraphicsBeginImageContextWithOptions(textureSize, false, 1.0)
+            if let gradientContext = UIGraphicsGetCurrentContext() {
+                gradientLayer.render(in: gradientContext)
+            }
+            let gradientImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            
+            // Draw text with gradient pattern color
+            if let gradientImage = gradientImage {
+                let patternColor = UIColor(patternImage: gradientImage)
                 
-                // Draw text to create clipping mask
-                context.setTextDrawingMode(.clip)
-                let attributes: [NSAttributedString.Key: Any] = [.font: scaledFont]
-                let string = NSAttributedString(string: text, attributes: attributes)
-                string.draw(at: drawPoint)
-                
-                // Draw gradient
-                let gradientStart = CGPoint(
-                    x: padding + textSize.width * startPoint.x, 
-                    y: padding + textSize.height * startPoint.y
-                )
-                let gradientEnd = CGPoint(
-                    x: padding + textSize.width * endPoint.x, 
-                    y: padding + textSize.height * endPoint.y
-                )
-                context.drawLinearGradient(gradient, start: gradientStart, end: gradientEnd, options: [])
-                
-                context.restoreGState()
-                
-                // Draw outline if needed
                 if hasOutline {
-                    let outlineAttributes: [NSAttributedString.Key: Any] = [
+                    let attributes: [NSAttributedString.Key: Any] = [
                         .font: scaledFont,
                         .strokeColor: outlineColor,
-                        .strokeWidth: outlineWidth * scale,
-                        .foregroundColor: UIColor.clear
+                        .strokeWidth: -(outlineWidth * scale),
+                        .foregroundColor: patternColor
                     ]
-                    let outlineString = NSAttributedString(string: text, attributes: outlineAttributes)
-                    outlineString.draw(at: drawPoint)
+                    let string = NSAttributedString(string: text, attributes: attributes)
+                    string.draw(at: drawPoint)
+                } else {
+                    let attributes: [NSAttributedString.Key: Any] = [
+                        .font: scaledFont,
+                        .foregroundColor: patternColor
+                    ]
+                    let string = NSAttributedString(string: text, attributes: attributes)
+                    string.draw(at: drawPoint)
                 }
             }
             
         case .image(let image):
-            if let cgImage = image.cgImage {
-                context.saveGState()
-                
-                // Draw text to create clipping mask
-                context.setTextDrawingMode(.clip)
-                let attributes: [NSAttributedString.Key: Any] = [.font: scaledFont]
+            // Scale image to fit text bounds
+            UIGraphicsBeginImageContextWithOptions(textureSize, false, 1.0)
+            if let imageContext = UIGraphicsGetCurrentContext() {
+                image.draw(in: CGRect(origin: .zero, size: textureSize))
+            }
+            let scaledImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+            UIGraphicsEndImageContext()
+            
+            // Create pattern color from image
+            let patternColor = UIColor(patternImage: scaledImage)
+            
+            if hasOutline {
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: scaledFont,
+                    .strokeColor: outlineColor,
+                    .strokeWidth: -(outlineWidth * scale),
+                    .foregroundColor: patternColor
+                ]
                 let string = NSAttributedString(string: text, attributes: attributes)
                 string.draw(at: drawPoint)
-                
-                // Draw image
-                let drawRect = CGRect(x: padding, y: padding, width: textSize.width, height: textSize.height)
-                context.draw(cgImage, in: drawRect)
-                
-                context.restoreGState()
-                
-                // Draw outline if needed
-                if hasOutline {
-                    let outlineAttributes: [NSAttributedString.Key: Any] = [
-                        .font: scaledFont,
-                        .strokeColor: outlineColor,
-                        .strokeWidth: outlineWidth * scale,
-                        .foregroundColor: UIColor.clear
-                    ]
-                    let outlineString = NSAttributedString(string: text, attributes: outlineAttributes)
-                    outlineString.draw(at: drawPoint)
-                }
+            } else {
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: scaledFont,
+                    .foregroundColor: patternColor
+                ]
+                let string = NSAttributedString(string: text, attributes: attributes)
+                string.draw(at: drawPoint)
             }
         }
         

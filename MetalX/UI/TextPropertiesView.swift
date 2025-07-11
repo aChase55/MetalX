@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct TextPropertiesView: View {
-    let textLayer: TextLayer
+    @ObservedObject var textLayer: TextLayer
     @ObservedObject var canvas: Canvas
     @State private var editingText: String = ""
     @State private var isEditingText = false
@@ -11,6 +11,7 @@ struct TextPropertiesView: View {
     @State private var showingImagePicker = false
     @State private var gradientStartColor = Color.blue
     @State private var gradientEndColor = Color.purple
+    @State private var lastSolidColor = Color.white
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -133,7 +134,7 @@ struct TextPropertiesView: View {
                 // Fill type selector
                 HStack(spacing: 12) {
                     FillTypeButton(title: "Solid", isSelected: isSolidFill, action: {
-                        textLayer.fillType = .solid(textLayer.textColor)
+                        textLayer.fillType = .solid(UIColor(lastSolidColor))
                         canvas.setNeedsDisplay()
                     })
                     
@@ -147,7 +148,13 @@ struct TextPropertiesView: View {
                     })
                     
                     FillTypeButton(title: "Image", isSelected: isImageFill, action: {
-                        showingImagePicker = true
+                        if case .image = textLayer.fillType {
+                            // Already has image, show picker to change it
+                            showingImagePicker = true
+                        } else {
+                            // Set to image fill and show picker
+                            showingImagePicker = true
+                        }
                     })
                     
                     FillTypeButton(title: "None", isSelected: isNoFill, action: {
@@ -169,6 +176,7 @@ struct TextPropertiesView: View {
                         ColorPicker("", selection: Binding(
                             get: { Color(color) },
                             set: { newColor in
+                                lastSolidColor = newColor
                                 textLayer.fillType = .solid(UIColor(newColor))
                                 canvas.setNeedsDisplay()
                             }
@@ -313,27 +321,51 @@ struct TextPropertiesView: View {
                 }
             ))
         }
+        .onAppear {
+            // Initialize state from text layer
+            switch textLayer.fillType {
+            case .solid(let color):
+                lastSolidColor = Color(color)
+            case .gradient(let colors, _, _):
+                if colors.count > 0 {
+                    gradientStartColor = Color(colors[0])
+                }
+                if colors.count > 1 {
+                    gradientEndColor = Color(colors[1])
+                }
+            default:
+                break
+            }
+        }
     }
     
     // Helper properties
     var isSolidFill: Bool {
-        if case .solid = textLayer.fillType { return true }
-        return false
+        switch textLayer.fillType {
+        case .solid: return true
+        default: return false
+        }
     }
     
     var isGradientFill: Bool {
-        if case .gradient = textLayer.fillType { return true }
-        return false
+        switch textLayer.fillType {
+        case .gradient: return true
+        default: return false
+        }
     }
     
     var isImageFill: Bool {
-        if case .image = textLayer.fillType { return true }
-        return false
+        switch textLayer.fillType {
+        case .image: return true
+        default: return false
+        }
     }
     
     var isNoFill: Bool {
-        if case .none = textLayer.fillType { return true }
-        return false
+        switch textLayer.fillType {
+        case .none: return true
+        default: return false
+        }
     }
     
     // Helper methods
@@ -368,7 +400,7 @@ struct FillTypeButton: View {
 
 // Font picker view
 struct FontPickerView: View {
-    let textLayer: TextLayer
+    @ObservedObject var textLayer: TextLayer
     @ObservedObject var canvas: Canvas
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""

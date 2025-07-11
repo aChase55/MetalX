@@ -2,8 +2,9 @@ import UIKit
 import Metal
 import MetalKit
 import CoreText
+import Combine
 
-class TextLayer: BaseLayer {
+class TextLayer: BaseLayer, ObservableObject {
     var text: String = "Text" {
         didSet {
             updateTexture()
@@ -16,23 +17,28 @@ class TextLayer: BaseLayer {
         }
     }
     
-    var fillType: TextFillType = .solid(.white) {
+    @Published var fillType: TextFillType = .solid(.white) {
         didSet {
             updateTexture()
         }
     }
+    
+    // Store the last solid color separately
+    private var lastSolidColor: UIColor = .white
     
     // Convenience property for backward compatibility
     var textColor: UIColor {
         get {
             switch fillType {
             case .solid(let color):
+                lastSolidColor = color
                 return color
             default:
-                return .white
+                return lastSolidColor
             }
         }
         set {
+            lastSolidColor = newValue
             fillType = .solid(newValue)
         }
     }
@@ -43,19 +49,19 @@ class TextLayer: BaseLayer {
         }
     }
     
-    var hasOutline: Bool = false {
+    @Published var hasOutline: Bool = false {
         didSet {
             updateTexture()
         }
     }
     
-    var outlineColor: UIColor = .black {
+    @Published var outlineColor: UIColor = .black {
         didSet {
             updateTexture()
         }
     }
     
-    var outlineWidth: CGFloat = 2.0 {
+    @Published var outlineWidth: CGFloat = 2.0 {
         didSet {
             updateTexture()
         }
