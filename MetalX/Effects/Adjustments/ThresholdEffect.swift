@@ -2,17 +2,21 @@ import Foundation
 import Metal
 import simd
 
-class ThresholdEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Threshold"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var threshold: Float = 0.5
-    @Published var smoothness: Float = 0.01
+class ThresholdEffect: BaseEffect {
+    @Published var threshold: Float = 0.5 {
+        didSet { onUpdate?() }
+    }
+    @Published var smoothness: Float = 0.01 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Threshold")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

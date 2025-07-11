@@ -2,18 +2,24 @@ import Foundation
 import Metal
 import simd
 
-class HalftoneEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Halftone"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var dotSize: Float = 8.0
-    @Published var angle: Float = 45.0
-    @Published var sharpness: Float = 0.8
+class HalftoneEffect: BaseEffect {
+    @Published var dotSize: Float = 8.0 {
+        didSet { onUpdate?() }
+    }
+    @Published var angle: Float = 45.0 {
+        didSet { onUpdate?() }
+    }
+    @Published var sharpness: Float = 0.8 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Halftone")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

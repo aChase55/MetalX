@@ -2,17 +2,21 @@ import Foundation
 import Metal
 import simd
 
-class NoiseEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Noise"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var amount: Float = 0.1
-    @Published var seed: Float = 0.5
+class NoiseEffect: BaseEffect {
+    @Published var amount: Float = 0.1 {
+        didSet { onUpdate?() }
+    }
+    @Published var seed: Float = 0.5 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Noise")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

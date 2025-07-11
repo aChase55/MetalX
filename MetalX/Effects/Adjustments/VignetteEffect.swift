@@ -2,18 +2,24 @@ import Foundation
 import Metal
 import simd
 
-class VignetteEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Vignette"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var size: Float = 0.5
-    @Published var smoothness: Float = 0.3
-    @Published var darkness: Float = 0.8
+class VignetteEffect: BaseEffect {
+    @Published var size: Float = 0.5 {
+        didSet { onUpdate?() }
+    }
+    @Published var smoothness: Float = 0.3 {
+        didSet { onUpdate?() }
+    }
+    @Published var darkness: Float = 0.8 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Vignette")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

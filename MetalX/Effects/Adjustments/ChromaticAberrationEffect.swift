@@ -2,17 +2,21 @@ import Foundation
 import Metal
 import simd
 
-class ChromaticAberrationEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Chromatic Aberration"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var redOffset: Float = 2.0
-    @Published var blueOffset: Float = -2.0
+class ChromaticAberrationEffect: BaseEffect {
+    @Published var redOffset: Float = 2.0 {
+        didSet { onUpdate?() }
+    }
+    @Published var blueOffset: Float = -2.0 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Chromatic Aberration")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

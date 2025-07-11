@@ -2,19 +2,28 @@ import Foundation
 import Metal
 import simd
 
-class VHSEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "VHS"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var lineIntensity: Float = 0.5
-    @Published var noiseIntensity: Float = 0.3
-    @Published var colorBleed: Float = 0.2
-    @Published var distortion: Float = 0.1
+class VHSEffect: BaseEffect {
+    @Published var lineIntensity: Float = 0.5 {
+        didSet { onUpdate?() }
+    }
+    @Published var noiseIntensity: Float = 0.3 {
+        didSet { onUpdate?() }
+    }
+    @Published var colorBleed: Float = 0.2 {
+        didSet { onUpdate?() }
+    }
+    @Published var distortion: Float = 0.1 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
+    private var timeOffset: Float = 0.0
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "VHS")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed
@@ -57,9 +66,12 @@ class VHSEffect: ObservableObject, Effect {
         computeEncoder.setTexture(texture, index: 0)
         computeEncoder.setTexture(outputTexture, index: 1)
         
+        // Update time offset to ensure re-rendering on parameter changes
+        timeOffset += 0.1
+        
         // Set parameters - pack into two float4s
         var params1 = simd_float4(lineIntensity * intensity, noiseIntensity * intensity, colorBleed * intensity, distortion * intensity)
-        var params2 = simd_float4(Float(texture.width), Float(texture.height), Float.random(in: 0...1000), 0)
+        var params2 = simd_float4(Float(texture.width), Float(texture.height), timeOffset, 0)
         
         computeEncoder.setBytes(&params1, length: MemoryLayout<simd_float4>.size, index: 0)
         computeEncoder.setBytes(&params2, length: MemoryLayout<simd_float4>.size, index: 1)

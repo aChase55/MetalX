@@ -2,16 +2,18 @@ import Foundation
 import Metal
 import simd
 
-class PixellateEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Pixellate"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var pixelSize: Float = 8.0
+class PixellateEffect: BaseEffect {
+    @Published var pixelSize: Float = 8.0 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Pixellate")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed

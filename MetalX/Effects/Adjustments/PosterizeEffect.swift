@@ -2,16 +2,18 @@ import Foundation
 import Metal
 import simd
 
-class PosterizeEffect: ObservableObject, Effect {
-    let id = UUID()
-    let name = "Posterize"
-    @Published var isEnabled: Bool = true
-    @Published var intensity: Float = 1.0
-    @Published var levels: Float = 8.0
+class PosterizeEffect: BaseEffect {
+    @Published var levels: Float = 8.0 {
+        didSet { onUpdate?() }
+    }
     
     private var pipelineState: MTLComputePipelineState?
     
-    func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
+    init() {
+        super.init(name: "Posterize")
+    }
+    
+    override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         guard isEnabled else { return texture }
         
         // Create pipeline state if needed
