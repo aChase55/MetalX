@@ -127,27 +127,13 @@ extension View {
 }
 
 struct SelfSizingSheet: ViewModifier {
-    @State private var sheetHeight: CGFloat = .zero
     func body(content: Content) -> some View {
         content
-            .overlay {
-                GeometryReader { geometry in
-                    Color.clear.preference(key: InnerHeightPreferenceKey.self, value: geometry.size.height)
-                }
-            }
-            .onPreferenceChange(InnerHeightPreferenceKey.self) { newHeight in
-                sheetHeight = newHeight
-            }
-            .presentationDetents([.height(sheetHeight)])
+            .presentationDetents([.medium, .large])
+            .presentationContentInteraction(.scrolls)
     }
 }
 
-struct InnerHeightPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = .zero
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
 
 struct LayerPropertySheet: View {
     @ObservedObject var canvas: Canvas
@@ -159,25 +145,27 @@ struct LayerPropertySheet: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if let layer = selectedLayer {
-                switch selectedTab {
-                case .position:
-                    positionControls(for: layer)
-                case .fill:
-                    fillControls(for: layer)
-                case .blend:
-                    blendControls(for: layer)
-                case .shadow:
-                    shadowControls(for: layer)
-                case .effects:
-                    effectsControls(for: layer)
-                case .text:
-                    textControls(for: layer)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let layer = selectedLayer {
+                    switch selectedTab {
+                    case .position:
+                        positionControls(for: layer)
+                    case .fill:
+                        fillControls(for: layer)
+                    case .blend:
+                        blendControls(for: layer)
+                    case .shadow:
+                        shadowControls(for: layer)
+                    case .effects:
+                        effectsControls(for: layer)
+                    case .text:
+                        textControls(for: layer)
+                    }
                 }
             }
+            .padding()
         }
-        .padding()
     }
     
     @ViewBuilder
