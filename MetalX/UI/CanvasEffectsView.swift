@@ -28,7 +28,7 @@ struct CanvasEffectsView: View {
             
             // Effects content
             ScrollView {
-                EffectsControlView(effectStack: canvas.effectStack)
+                EffectsControlView(effectStack: canvas.effectStack, canvas: canvas)
                     .padding()
             }
         }

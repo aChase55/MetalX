@@ -35,6 +35,7 @@ struct TextPropertiesView: View {
                             .cornerRadius(8)
                         
                         Button("Done") {
+                            canvas.capturePropertyChange(actionName: "Change Text")
                             textLayer.text = editingText
                             canvas.setNeedsDisplay()
                             isEditingText = false
@@ -116,6 +117,7 @@ struct TextPropertiesView: View {
                 Slider(value: Binding(
                     get: { textLayer.font.pointSize },
                     set: { newSize in
+                        canvas.capturePropertyChange(actionName: "Change Font Size")
                         textLayer.font = textLayer.font.withSize(newSize)
                         canvas.setNeedsDisplay()
                     }
@@ -134,6 +136,7 @@ struct TextPropertiesView: View {
                 // Fill type selector
                 HStack(spacing: 12) {
                     FillTypeButton(title: "Solid", isSelected: isSolidFill, action: {
+                        canvas.capturePropertyChange(actionName: "Change Text Fill Type")
                         textLayer.fillType = .solid(UIColor(lastSolidColor))
                         canvas.setNeedsDisplay()
                     })
@@ -144,6 +147,7 @@ struct TextPropertiesView: View {
                             showingGradientEditor = true
                         } else {
                             // Switch to gradient with default
+                            canvas.capturePropertyChange(actionName: "Change Text Fill Type")
                             textLayer.fillType = .gradient(gradientData.toGradient())
                             canvas.setNeedsDisplay()
                         }
@@ -160,6 +164,7 @@ struct TextPropertiesView: View {
                     })
                     
                     FillTypeButton(title: "None", isSelected: isNoFill, action: {
+                        canvas.capturePropertyChange(actionName: "Change Text Fill Type")
                         textLayer.fillType = .none
                         canvas.setNeedsDisplay()
                     })
@@ -178,6 +183,7 @@ struct TextPropertiesView: View {
                         ColorPicker("", selection: Binding(
                             get: { Color(color) },
                             set: { newColor in
+                                canvas.capturePropertyChange(actionName: "Change Text Color")
                                 lastSolidColor = newColor
                                 textLayer.fillType = .solid(UIColor(newColor))
                                 canvas.setNeedsDisplay()
@@ -234,6 +240,7 @@ struct TextPropertiesView: View {
                 Toggle("Text Outline", isOn: Binding(
                     get: { textLayer.hasOutline },
                     set: { enabled in
+                        canvas.capturePropertyChange(actionName: "Toggle Text Outline")
                         textLayer.hasOutline = enabled
                         canvas.setNeedsDisplay()
                     }
@@ -250,6 +257,7 @@ struct TextPropertiesView: View {
                     ColorPicker("", selection: Binding(
                         get: { Color(textLayer.outlineColor) },
                         set: { newColor in
+                            canvas.capturePropertyChange(actionName: "Change Outline Color")
                             textLayer.outlineColor = UIColor(newColor)
                             canvas.setNeedsDisplay()
                         }
@@ -277,6 +285,9 @@ struct TextPropertiesView: View {
                         }
                     ), in: 0.5...10)
                     .accentColor(.blue)
+                    .onChange(of: textLayer.outlineWidth) {
+                        canvas.capturePropertyChange(actionName: "Change Outline Width")
+                    }
                 }
             }
         }
@@ -293,6 +304,7 @@ struct TextPropertiesView: View {
                 },
                 set: { newImage in
                     if let image = newImage {
+                        canvas.capturePropertyChange(actionName: "Change Text Image Fill")
                         textLayer.fillType = .image(image)
                         canvas.setNeedsDisplay()
                     }
@@ -312,6 +324,7 @@ struct TextPropertiesView: View {
         }
         .sheet(isPresented: $showingGradientEditor) {
             GradientEditorView(gradientData: $gradientData) {
+                canvas.capturePropertyChange(actionName: "Change Text Gradient")
                 textLayer.fillType = .gradient(gradientData.toGradient())
                 canvas.setNeedsDisplay()
             }
@@ -392,6 +405,7 @@ struct FontPickerView: View {
                         ForEach(UIFont.fontNames(forFamilyName: family).sorted(), id: \.self) { fontName in
                             Button(action: {
                                 if let font = UIFont(name: fontName, size: textLayer.font.pointSize) {
+                                    canvas.capturePropertyChange(actionName: "Change Font")
                                     textLayer.font = font
                                     canvas.setNeedsDisplay()
                                     dismiss()

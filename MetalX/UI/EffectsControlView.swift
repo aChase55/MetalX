@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EffectsControlView: View {
     @ObservedObject var effectStack: EffectStack
+    @ObservedObject var canvas: Canvas
     @State private var showingEffectPicker = false
     @State private var selectedEffect: Effect?
     
@@ -32,7 +33,9 @@ struct EffectsControlView: View {
                         // Effect row
                         EffectRow(
                             effect: effect,
+                            canvas: canvas,
                             onRemove: {
+                                canvas.capturePropertyChange(actionName: "Remove Effect")
                                 effectStack.removeEffect(effect)
                                 if selectedEffect?.id == effect.id {
                                     selectedEffect = nil
@@ -47,25 +50,25 @@ struct EffectsControlView: View {
                         if selectedEffect?.id == effect.id {
                             VStack(alignment: .leading, spacing: 12) {
                                 if let brightnessContrast = effect as? BrightnessContrastEffect {
-                                    BrightnessContrastControls(effect: brightnessContrast)
+                                    BrightnessContrastControls(effect: brightnessContrast, canvas: canvas)
                                 } else if let hueSaturation = effect as? HueSaturationEffect {
-                                    HueSaturationControls(effect: hueSaturation)
+                                    HueSaturationControls(effect: hueSaturation, canvas: canvas)
                                 } else if let pixellate = effect as? PixellateEffect {
-                                    PixellateControls(effect: pixellate)
+                                    PixellateControls(effect: pixellate, canvas: canvas)
                                 } else if let noise = effect as? NoiseEffect {
-                                    NoiseControls(effect: noise)
+                                    NoiseControls(effect: noise, canvas: canvas)
                                 } else if let threshold = effect as? ThresholdEffect {
-                                    ThresholdControls(effect: threshold)
+                                    ThresholdControls(effect: threshold, canvas: canvas)
                                 } else if let chromatic = effect as? ChromaticAberrationEffect {
-                                    ChromaticAberrationControls(effect: chromatic)
+                                    ChromaticAberrationControls(effect: chromatic, canvas: canvas)
                                 } else if let vhs = effect as? VHSEffect {
-                                    VHSControls(effect: vhs)
+                                    VHSControls(effect: vhs, canvas: canvas)
                                 } else if let posterize = effect as? PosterizeEffect {
-                                    PosterizeControls(effect: posterize)
+                                    PosterizeControls(effect: posterize, canvas: canvas)
                                 } else if let vignette = effect as? VignetteEffect {
-                                    VignetteControls(effect: vignette)
+                                    VignetteControls(effect: vignette, canvas: canvas)
                                 } else if let halftone = effect as? HalftoneEffect {
-                                    HalftoneControls(effect: halftone)
+                                    HalftoneControls(effect: halftone, canvas: canvas)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -84,6 +87,7 @@ struct EffectsControlView: View {
         }
         .sheet(isPresented: $showingEffectPicker) {
             EffectPickerView { effect in
+                canvas.capturePropertyChange(actionName: "Add Effect")
                 effectStack.addEffect(effect)
                 showingEffectPicker = false
                 selectedEffect = effect // Show controls for newly added effect
@@ -101,6 +105,7 @@ struct EffectWrapper: Identifiable {
 
 struct EffectRow: View {
     let effect: Effect
+    @ObservedObject var canvas: Canvas
     let onRemove: () -> Void
     let onSelect: () -> Void
     
@@ -110,7 +115,10 @@ struct EffectRow: View {
                 // Enable/disable toggle
                 Toggle("", isOn: Binding(
                     get: { effect.isEnabled },
-                    set: { effect.isEnabled = $0 }
+                    set: { newValue in
+                        canvas.capturePropertyChange(actionName: "Toggle Effect")
+                        effect.isEnabled = newValue
+                    }
                 ))
                 .labelsHidden()
                 .toggleStyle(SwitchToggleStyle(tint: .blue))
@@ -134,6 +142,10 @@ struct EffectRow: View {
                 .disabled(!effect.isEnabled)
                 .onTapGesture {
                     // Prevent button action when using slider
+                }
+                .onChange(of: effect.intensity) {
+                    canvas.capturePropertyChange(actionName: "Change Effect Intensity")
+                    canvas.setNeedsDisplay()
                 }
                 
                 // Remove button
@@ -233,14 +245,15 @@ struct EffectPickerView: View {
 
 struct EffectDetailView: View {
     let effect: Effect
+    @ObservedObject var canvas: Canvas
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(spacing: 20) {
             if let brightnessContrast = effect as? BrightnessContrastEffect {
-                BrightnessContrastControls(effect: brightnessContrast)
+                BrightnessContrastControls(effect: brightnessContrast, canvas: canvas)
             } else if let hueSaturation = effect as? HueSaturationEffect {
-                HueSaturationControls(effect: hueSaturation)
+                HueSaturationControls(effect: hueSaturation, canvas: canvas)
             }
             
             Spacer()
@@ -253,6 +266,7 @@ struct EffectDetailView: View {
 
 struct BrightnessContrastControls: View {
     @ObservedObject var effect: BrightnessContrastEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 20) {
@@ -268,6 +282,10 @@ struct BrightnessContrastControls: View {
                 
                 Slider(value: $effect.brightness, in: -1...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.brightness) {
+                        canvas.capturePropertyChange(actionName: "Change Brightness")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             // Contrast
@@ -282,12 +300,18 @@ struct BrightnessContrastControls: View {
                 
                 Slider(value: $effect.contrast, in: 0...2)
                     .accentColor(.blue)
+                    .onChange(of: effect.contrast) {
+                        canvas.capturePropertyChange(actionName: "Change Contrast")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             // Reset button
             Button(action: {
+                canvas.capturePropertyChange(actionName: "Reset Brightness/Contrast")
                 effect.brightness = 0
                 effect.contrast = 1
+                canvas.setNeedsDisplay()
             }) {
                 Text("Reset")
                     .frame(maxWidth: .infinity)
@@ -299,6 +323,7 @@ struct BrightnessContrastControls: View {
 
 struct HueSaturationControls: View {
     @ObservedObject var effect: HueSaturationEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 20) {
@@ -314,6 +339,10 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.hueShift, in: -180...180)
                     .accentColor(.blue)
+                    .onChange(of: effect.hueShift) {
+                        canvas.capturePropertyChange(actionName: "Change Hue")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             // Saturation
@@ -328,6 +357,10 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.saturation, in: 0...2)
                     .accentColor(.blue)
+                    .onChange(of: effect.saturation) {
+                        canvas.capturePropertyChange(actionName: "Change Saturation")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             // Lightness
@@ -342,13 +375,19 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.lightness, in: -1...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.lightness) {
+                        canvas.capturePropertyChange(actionName: "Change Lightness")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             // Reset button
             Button(action: {
+                canvas.capturePropertyChange(actionName: "Reset Hue/Saturation")
                 effect.hueShift = 0
                 effect.saturation = 1
                 effect.lightness = 0
+                canvas.setNeedsDisplay()
             }) {
                 Text("Reset")
                     .frame(maxWidth: .infinity)
@@ -362,6 +401,7 @@ struct HueSaturationControls: View {
 
 struct PixellateControls: View {
     @ObservedObject var effect: PixellateEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -375,6 +415,10 @@ struct PixellateControls: View {
                 }
                 Slider(value: $effect.pixelSize, in: 1...32)
                     .accentColor(.blue)
+                    .onChange(of: effect.pixelSize) {
+                        canvas.capturePropertyChange(actionName: "Change Pixel Size")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -382,6 +426,7 @@ struct PixellateControls: View {
 
 struct NoiseControls: View {
     @ObservedObject var effect: NoiseEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -395,6 +440,10 @@ struct NoiseControls: View {
                 }
                 Slider(value: $effect.amount, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.amount) {
+                        canvas.capturePropertyChange(actionName: "Change Noise Amount")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -407,6 +456,10 @@ struct NoiseControls: View {
                 }
                 Slider(value: $effect.seed, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.seed) {
+                        canvas.capturePropertyChange(actionName: "Change Noise Seed")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -414,6 +467,7 @@ struct NoiseControls: View {
 
 struct ThresholdControls: View {
     @ObservedObject var effect: ThresholdEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -427,6 +481,10 @@ struct ThresholdControls: View {
                 }
                 Slider(value: $effect.threshold, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.threshold) {
+                        canvas.capturePropertyChange(actionName: "Change Threshold")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -439,6 +497,10 @@ struct ThresholdControls: View {
                 }
                 Slider(value: $effect.smoothness, in: 0...0.1)
                     .accentColor(.blue)
+                    .onChange(of: effect.smoothness) {
+                        canvas.capturePropertyChange(actionName: "Change Threshold Smoothness")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -446,6 +508,7 @@ struct ThresholdControls: View {
 
 struct ChromaticAberrationControls: View {
     @ObservedObject var effect: ChromaticAberrationEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -459,6 +522,10 @@ struct ChromaticAberrationControls: View {
                 }
                 Slider(value: $effect.redOffset, in: -10...10)
                     .accentColor(.blue)
+                    .onChange(of: effect.redOffset) {
+                        canvas.capturePropertyChange(actionName: "Change Red Offset")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -471,6 +538,10 @@ struct ChromaticAberrationControls: View {
                 }
                 Slider(value: $effect.blueOffset, in: -10...10)
                     .accentColor(.blue)
+                    .onChange(of: effect.blueOffset) {
+                        canvas.capturePropertyChange(actionName: "Change Blue Offset")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -478,6 +549,7 @@ struct ChromaticAberrationControls: View {
 
 struct VHSControls: View {
     @ObservedObject var effect: VHSEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -491,6 +563,10 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.lineIntensity, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.lineIntensity) {
+                        canvas.capturePropertyChange(actionName: "Change VHS Scanlines")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -503,6 +579,10 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.noiseIntensity, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.noiseIntensity) {
+                        canvas.capturePropertyChange(actionName: "Change VHS Noise")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -515,6 +595,10 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.colorBleed, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.colorBleed) {
+                        canvas.capturePropertyChange(actionName: "Change VHS Color Bleed")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -527,6 +611,10 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.distortion, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.distortion) {
+                        canvas.capturePropertyChange(actionName: "Change VHS Distortion")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -534,6 +622,7 @@ struct VHSControls: View {
 
 struct PosterizeControls: View {
     @ObservedObject var effect: PosterizeEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -547,6 +636,10 @@ struct PosterizeControls: View {
                 }
                 Slider(value: $effect.levels, in: 2...32)
                     .accentColor(.blue)
+                    .onChange(of: effect.levels) {
+                        canvas.capturePropertyChange(actionName: "Change Posterize Levels")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -554,6 +647,7 @@ struct PosterizeControls: View {
 
 struct VignetteControls: View {
     @ObservedObject var effect: VignetteEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -567,6 +661,10 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.size, in: 0...2)
                     .accentColor(.blue)
+                    .onChange(of: effect.size) {
+                        canvas.capturePropertyChange(actionName: "Change Vignette Size")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -579,6 +677,10 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.smoothness, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.smoothness) {
+                        canvas.capturePropertyChange(actionName: "Change Vignette Smoothness")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -591,6 +693,10 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.darkness, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.darkness) {
+                        canvas.capturePropertyChange(actionName: "Change Vignette Darkness")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }
@@ -598,6 +704,7 @@ struct VignetteControls: View {
 
 struct HalftoneControls: View {
     @ObservedObject var effect: HalftoneEffect
+    @ObservedObject var canvas: Canvas
     
     var body: some View {
         VStack(spacing: 16) {
@@ -611,6 +718,10 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.dotSize, in: 2...32)
                     .accentColor(.blue)
+                    .onChange(of: effect.dotSize) {
+                        canvas.capturePropertyChange(actionName: "Change Halftone Size")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -623,6 +734,10 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.angle, in: 0...180)
                     .accentColor(.blue)
+                    .onChange(of: effect.angle) {
+                        canvas.capturePropertyChange(actionName: "Change Halftone Angle")
+                        canvas.setNeedsDisplay()
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -635,6 +750,10 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.sharpness, in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: effect.sharpness) {
+                        canvas.capturePropertyChange(actionName: "Change Halftone Sharpness")
+                        canvas.setNeedsDisplay()
+                    }
             }
         }
     }

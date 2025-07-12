@@ -18,6 +18,12 @@ class Canvas: ObservableObject {
         return stack
     }()
     
+    // Undo/Redo support
+    let undoManager = UndoManager()
+    
+    // Track if we're in the middle of a property change
+    private var isCapturingPropertyChange = false
+    
     // Change tracking
     private var isDirty = true // Start with true to ensure initial render
     var needsDisplay: Bool {
@@ -27,6 +33,9 @@ class Canvas: ObservableObject {
     
     // Layer management
     func addLayer(_ layer: any Layer, at index: Int? = nil) {
+        // Capture state for undo
+        captureState(actionName: UndoActionType.addLayer.actionName)
+        
         var insertIndex = index ?? layers.count
         
         // If layer has shadow enabled, insert shadow layer first
@@ -48,6 +57,10 @@ class Canvas: ObservableObject {
     
     func removeLayer(_ layer: any Layer) {
         guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return }
+        
+        // Capture state for undo
+        captureState(actionName: UndoActionType.deleteLayer.actionName)
+        
         layers.remove(at: index)
         if selectedLayer?.id == layer.id {
             selectedLayer = nil
@@ -174,10 +187,50 @@ class Canvas: ObservableObject {
     }
     
     // Private helpers
-    private func updateZIndices() {
+    func updateZIndices() {
         for (index, layer) in layers.enumerated() {
             layer.zIndex = index
         }
+    }
+    
+    // Add layer without undo capture (for undo/redo operations)
+    func addLayerWithoutUndo(_ layer: any Layer, at index: Int? = nil) {
+        var insertIndex = index ?? layers.count
+        
+        // If layer has shadow enabled, insert shadow layer first
+        if layer.dropShadow.isEnabled {
+            let shadowLayer = ShadowLayer(sourceLayer: layer)
+            shadowLayer.shadowOffset = layer.dropShadow.offset
+            shadowLayer.shadowBlur = layer.dropShadow.blur
+            shadowLayer.shadowColor = layer.dropShadow.color
+            shadowLayer.opacity = layer.dropShadow.opacity
+            shadowLayer.updateFromSource()
+            layers.insert(shadowLayer, at: insertIndex)
+            insertIndex += 1
+        }
+        
+        layers.insert(layer, at: insertIndex)
+        updateZIndices()
+        needsDisplay = true
+    }
+    
+    // Remove layer without undo capture (for undo/redo operations)
+    func removeLayerWithoutUndo(_ layer: any Layer) {
+        guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return }
+        layers.remove(at: index)
+        if selectedLayer?.id == layer.id {
+            selectedLayer = nil
+        }
+        updateZIndices()
+        needsDisplay = true
+    }
+    
+    // Clear all layers without undo capture
+    func clearLayersWithoutUndo() {
+        layers.removeAll()
+        selectedLayer = nil
+        updateZIndices()
+        needsDisplay = true
     }
     
     // Mark canvas as needing redraw
@@ -194,6 +247,25 @@ class Canvas: ObservableObject {
             name: NSNotification.Name("CanvasNeedsDisplay"),
             object: self
         )
+    }
+    
+    // Capture state for property changes (debounced)
+    private var propertyChangeTimer: Timer?
+    
+    func capturePropertyChange(actionName: String) {
+        // Cancel any pending timer
+        propertyChangeTimer?.invalidate()
+        
+        // If this is the first change, capture state immediately
+        if !isCapturingPropertyChange {
+            isCapturingPropertyChange = true
+            captureState(actionName: actionName)
+        }
+        
+        // Set timer to mark end of property changes
+        propertyChangeTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            self?.isCapturingPropertyChange = false
+        }
     }
     
     // Update shadow layer when properties change

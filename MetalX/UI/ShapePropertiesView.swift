@@ -179,6 +179,7 @@ struct ShapePropertiesView: View {
                     Toggle("Enable Shadow", isOn: Binding(
                         get: { shape.dropShadow.isEnabled },
                         set: { 
+                            canvas.capturePropertyChange(actionName: "Toggle Drop Shadow")
                             shape.dropShadow.isEnabled = $0
                             canvas.updateShadowForLayer(shape)
                         }
@@ -200,6 +201,9 @@ struct ShapePropertiesView: View {
                                             canvas.updateShadowForLayer(shape)
                                         }
                                     ), in: -100...100)
+                                    .onChange(of: shape.dropShadow.offset.width) {
+                                        canvas.capturePropertyChange(actionName: "Change Shadow Offset")
+                                    }
                                     Text("\(Int(shape.dropShadow.offset.width))")
                                         .font(.caption)
                                         .monospacedDigit()
@@ -216,6 +220,9 @@ struct ShapePropertiesView: View {
                                             canvas.updateShadowForLayer(shape)
                                         }
                                     ), in: -100...100)
+                                    .onChange(of: shape.dropShadow.offset.height) {
+                                        canvas.capturePropertyChange(actionName: "Change Shadow Offset")
+                                    }
                                     Text("\(Int(shape.dropShadow.offset.height))")
                                         .font(.caption)
                                         .monospacedDigit()
@@ -234,6 +241,9 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0...100)
+                            .onChange(of: shape.dropShadow.blur) {
+                                canvas.capturePropertyChange(actionName: "Change Shadow Blur")
+                            }
                             Text("\(Int(shape.dropShadow.blur))")
                                 .font(.caption)
                                 .monospacedDigit()
@@ -250,6 +260,9 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0.5...2.0)
+                            .onChange(of: shape.dropShadow.scale) {
+                                canvas.capturePropertyChange(actionName: "Change Shadow Scale")
+                            }
                             Text(String(format: "%.1fx", shape.dropShadow.scale))
                                 .font(.caption)
                                 .monospacedDigit()
@@ -266,6 +279,9 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0...1)
+                            .onChange(of: shape.dropShadow.opacity) {
+                                canvas.capturePropertyChange(actionName: "Change Shadow Opacity")
+                            }
                             Text("\(Int(shape.dropShadow.opacity * 100))%")
                                 .font(.caption)
                                 .monospacedDigit()
@@ -281,6 +297,7 @@ struct ShapePropertiesView: View {
                                     Color(UIColor(cgColor: shape.dropShadow.color))
                                 },
                                 set: { newColor in
+                                    canvas.capturePropertyChange(actionName: "Change Shadow Color")
                                     shape.dropShadow.color = UIColor(newColor).cgColor
                                     canvas.updateShadowForLayer(shape)
                                 }
@@ -381,6 +398,8 @@ struct ShapePropertiesView: View {
     private func updateFillType(_ type: FillTypeOption) {
         guard let shape = shapeLayer else { return }
         
+        canvas.capturePropertyChange(actionName: "Change Fill Type")
+        
         switch type {
         case .solid:
             shape.fillType = .solid(UIColor(solidColor).cgColor)
@@ -404,6 +423,7 @@ struct ShapePropertiesView: View {
     
     private func updateSolidColor(_ color: Color) {
         guard let shape = shapeLayer else { return }
+        canvas.capturePropertyChange(actionName: "Change Fill Color")
         shape.fillType = .solid(UIColor(color).cgColor)
         // Force texture recreation
         shape.clearTexture()
@@ -414,6 +434,7 @@ struct ShapePropertiesView: View {
     
     private func applyGradient() {
         guard let shape = shapeLayer else { return }
+        canvas.capturePropertyChange(actionName: "Change Gradient")
         
         let gradient = currentGradient.toGradient()
         shape.fillType = .gradient(gradient)
@@ -426,6 +447,7 @@ struct ShapePropertiesView: View {
     
     private func applyImageFill(_ image: UIImage) {
         guard let shape = shapeLayer else { return }
+        canvas.capturePropertyChange(actionName: "Change Image Fill")
         
         // Convert UIImage to MTLTexture
         if let texture = createTexture(from: image) {
@@ -456,6 +478,7 @@ struct ShapePropertiesView: View {
     
     private func updateStroke() {
         guard let shape = shapeLayer else { return }
+        canvas.capturePropertyChange(actionName: "Change Stroke")
         
         // Ensure we have a stroke color if width > 0
         if shape.strokeWidth > 0 && shape.strokeColor == nil {

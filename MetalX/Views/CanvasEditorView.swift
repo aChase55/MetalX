@@ -157,9 +157,29 @@ struct CanvasEditorView: View {
                 .zIndex(1)
             }
         }
-        .navigationTitle(project.name)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Undo button
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    canvas.undoManager.undo()
+                }) {
+                    Image(systemName: "arrow.uturn.backward")
+                }
+                .disabled(!canvas.undoManager.canUndo)
+            }
+            
+            // Redo button
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    canvas.undoManager.redo()
+                }) {
+                    Image(systemName: "arrow.uturn.forward")
+                }
+                .disabled(!canvas.undoManager.canRedo)
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: saveProject) {

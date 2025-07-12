@@ -180,6 +180,7 @@ struct LayerPropertySheet: View {
                         .frame(width: 20)
                     
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer")
                         layer.transform.position.x -= 1
                         canvas.setNeedsDisplay()
                     }) {
@@ -192,6 +193,7 @@ struct LayerPropertySheet: View {
                         .frame(width: 50)
                     
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer")
                         layer.transform.position.x += 1
                         canvas.setNeedsDisplay()
                     }) {
@@ -207,6 +209,7 @@ struct LayerPropertySheet: View {
                         .frame(width: 20)
                     
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer")
                         layer.transform.position.y -= 1
                         canvas.setNeedsDisplay()
                     }) {
@@ -219,6 +222,7 @@ struct LayerPropertySheet: View {
                         .frame(width: 50)
                     
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer")
                         layer.transform.position.y += 1
                         canvas.setNeedsDisplay()
                     }) {
@@ -236,6 +240,7 @@ struct LayerPropertySheet: View {
                 HStack(spacing: 16) {
                     // Flip Horizontal
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Flip Horizontal")
                         layer.transform.flipHorizontal.toggle()
                         canvas.setNeedsDisplay()
                     }) {
@@ -255,6 +260,7 @@ struct LayerPropertySheet: View {
                     
                     // Flip Vertical
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Flip Vertical")
                         layer.transform.flipVertical.toggle()
                         canvas.setNeedsDisplay()
                     }) {
@@ -282,6 +288,7 @@ struct LayerPropertySheet: View {
                 HStack(spacing: 16) {
                     // Duplicate
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Duplicate Layer")
                         duplicateLayer(layer)
                     }) {
                         VStack(spacing: 4) {
@@ -300,6 +307,7 @@ struct LayerPropertySheet: View {
                     
                     // Move Up
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer Up")
                         canvas.moveLayerUp(layer)
                     }) {
                         VStack(spacing: 4) {
@@ -319,6 +327,7 @@ struct LayerPropertySheet: View {
                     
                     // Move Down
                     Button(action: {
+                        canvas.capturePropertyChange(actionName: "Move Layer Down")
                         canvas.moveLayerDown(layer)
                     }) {
                         VStack(spacing: 4) {
@@ -339,6 +348,7 @@ struct LayerPropertySheet: View {
                 
                 // Delete button
                 Button(action: {
+                    canvas.capturePropertyChange(actionName: "Delete Layer")
                     deleteLayer(layer)
                 }) {
                     HStack {
@@ -426,6 +436,7 @@ struct LayerPropertySheet: View {
             Picker("Blend Mode", selection: Binding(
                 get: { layer.blendMode },
                 set: { newMode in
+                    canvas.capturePropertyChange(actionName: "Change Blend Mode")
                     layer.blendMode = newMode
                     canvas.setNeedsDisplay()
                 }
@@ -453,6 +464,7 @@ struct LayerPropertySheet: View {
                 Slider(value: Binding(
                     get: { CGFloat(layer.opacity) },
                     set: { newOpacity in
+                        canvas.capturePropertyChange(actionName: "Change Opacity")
                         layer.opacity = Float(newOpacity)
                         canvas.setNeedsDisplay()
                     }
@@ -469,6 +481,7 @@ struct LayerPropertySheet: View {
             Toggle("Drop Shadow", isOn: Binding(
                 get: { layer.dropShadow.isEnabled },
                 set: { enabled in
+                    canvas.capturePropertyChange(actionName: "Toggle Drop Shadow")
                     layer.dropShadow.isEnabled = enabled
                     canvas.updateShadowForLayer(layer)
                 }
@@ -485,6 +498,7 @@ struct LayerPropertySheet: View {
                     ColorPicker("", selection: Binding(
                         get: { Color(UIColor(cgColor: layer.dropShadow.color)) },
                         set: { newColor in
+                            canvas.capturePropertyChange(actionName: "Change Shadow Color")
                             layer.dropShadow.color = UIColor(newColor).cgColor
                             canvas.updateShadowForLayer(layer)
                         }
@@ -511,6 +525,9 @@ struct LayerPropertySheet: View {
                                     canvas.updateShadowForLayer(layer)
                                 }
                             ), in: -100...100)
+                            .onChange(of: layer.dropShadow.offset.width) {
+                                canvas.capturePropertyChange(actionName: "Change Shadow Offset")
+                            }
                             Text("\(Int(layer.dropShadow.offset.width))")
                                 .font(.caption)
                                 .monospacedDigit()
@@ -529,6 +546,9 @@ struct LayerPropertySheet: View {
                                     canvas.updateShadowForLayer(layer)
                                 }
                             ), in: -100...100)
+                            .onChange(of: layer.dropShadow.offset.height) {
+                                canvas.capturePropertyChange(actionName: "Change Shadow Offset")
+                            }
                             Text("\(Int(layer.dropShadow.offset.height))")
                                 .font(.caption)
                                 .monospacedDigit()
@@ -557,6 +577,9 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0...100)
                     .accentColor(.blue)
+                    .onChange(of: layer.dropShadow.blur) {
+                        canvas.capturePropertyChange(actionName: "Change Shadow Blur")
+                    }
                 }
                 
                 // Shadow Scale
@@ -579,6 +602,9 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0.5...2.0)
                     .accentColor(.blue)
+                    .onChange(of: layer.dropShadow.scale) {
+                        canvas.capturePropertyChange(actionName: "Change Shadow Scale")
+                    }
                 }
                 
                 // Shadow Opacity
@@ -601,6 +627,9 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0...1)
                     .accentColor(.blue)
+                    .onChange(of: layer.dropShadow.opacity) {
+                        canvas.capturePropertyChange(actionName: "Change Shadow Opacity")
+                    }
                 }
             }
         }
@@ -608,7 +637,7 @@ struct LayerPropertySheet: View {
     
     @ViewBuilder
     private func effectsControls(for layer: any Layer) -> some View {
-        EffectsControlView(effectStack: layer.effectStack)
+        EffectsControlView(effectStack: layer.effectStack, canvas: canvas)
     }
     
     @ViewBuilder

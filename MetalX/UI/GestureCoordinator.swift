@@ -15,6 +15,9 @@ class GestureCoordinator: NSObject {
     private var pinchStartScale: CGFloat = 1.0
     private var rotationStartAngle: CGFloat = 0.0
     
+    // Undo state capture
+    private var undoStateCapture: UndoStateCapture?
+    
     // Alignment guides
     private let alignmentEngine = AlignmentEngine()
     private let guideRenderer = GuideRenderer()
@@ -118,6 +121,10 @@ class GestureCoordinator: NSObject {
             // Prevent scroll view from interfering
             scrollView?.isScrollEnabled = false
             
+            // Begin undo capture
+            undoStateCapture = canvas.createStateCapture(for: .transformLayer)
+            undoStateCapture?.beginCapture()
+            
         case .changed:
             let translation = gesture.translation(in: metalView)
             
@@ -156,6 +163,10 @@ class GestureCoordinator: NSObject {
             // Re-enable scroll view after gesture
             scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
             
+            // End undo capture
+            undoStateCapture?.endCapture()
+            undoStateCapture = nil
+            
         default:
             break
         }
@@ -171,6 +182,10 @@ class GestureCoordinator: NSObject {
             // Disable scroll view zoom
             scrollView?.pinchGestureRecognizer?.isEnabled = false
             
+            // Begin undo capture
+            undoStateCapture = canvas.createStateCapture(for: .transformLayer)
+            undoStateCapture?.beginCapture()
+            
         case .changed:
             selectedLayer.transform.scale = pinchStartScale * gesture.scale
             canvas.setNeedsDisplay()
@@ -179,6 +194,10 @@ class GestureCoordinator: NSObject {
         case .ended, .cancelled:
             // Re-enable scroll view zoom if no selection
             scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
+            
+            // End undo capture
+            undoStateCapture?.endCapture()
+            undoStateCapture = nil
             
         default:
             break
@@ -193,10 +212,19 @@ class GestureCoordinator: NSObject {
         case .began:
             rotationStartAngle = selectedLayer.transform.rotation
             
+            // Begin undo capture
+            undoStateCapture = canvas.createStateCapture(for: .transformLayer)
+            undoStateCapture?.beginCapture()
+            
         case .changed:
             selectedLayer.transform.rotation = rotationStartAngle + gesture.rotation
             canvas.setNeedsDisplay()
             onNeedsDisplay?()
+            
+        case .ended, .cancelled:
+            // End undo capture
+            undoStateCapture?.endCapture()
+            undoStateCapture = nil
             
         default:
             break

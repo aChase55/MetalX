@@ -360,7 +360,7 @@ class LayerFactory {
         applyCommonProperties(to: layer, from: data)
         
         // Delay texture update to ensure it happens after layer is added to canvas
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5    ) {
             layer.forceUpdateTexture()
         }
         
