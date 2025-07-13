@@ -134,7 +134,7 @@ struct CanvasEditorView: View {
                         // Layer list
                         ScrollView {
                             VStack(spacing: 4) {
-                                ForEach(Array(canvas.layers.reversed().enumerated()), id: \.element.id) { index, layer in
+                                ForEach(Array(canvas.layers.filter { !$0.isInternal }.reversed().enumerated()), id: \.element.id) { index, layer in
                                     LayerRow(layer: layer, isSelected: layer === canvas.selectedLayer)
                                         .onTapGesture {
                                             canvas.selectLayer(layer)

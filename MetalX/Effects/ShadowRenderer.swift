@@ -183,14 +183,14 @@ class ShadowRenderer {
         )
         
         // Apply blur using MPS if available and appropriate, otherwise use custom blur
-        if useMPS && shadowParams.blur > 0 {
+        if useMPS && shadowParams.blur > 0.1 {
             applyMPSBlur(
                 from: shadowTexture,
                 to: blurredShadowTexture,
                 blurRadius: shadowParams.blur,
                 commandBuffer: commandBuffer
             )
-        } else {
+        } else if shadowParams.blur > 0.001 {
             // Step 2: Apply horizontal blur
             applyHorizontalBlur(
                 from: shadowTexture,
@@ -206,6 +206,11 @@ class ShadowRenderer {
                 blurRadius: shadowParams.blur,
                 commandBuffer: commandBuffer
             )
+        } else {
+            // No blur needed, just copy the shadow texture
+            guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return }
+            blitEncoder.copy(from: shadowTexture, to: blurredShadowTexture)
+            blitEncoder.endEncoding()
         }
         
         // Step 4: Composite shadow with offset

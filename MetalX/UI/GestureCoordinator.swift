@@ -147,6 +147,9 @@ class GestureCoordinator: NSObject {
             // Apply the snapped position
             selectedLayer.transform.position = newPosition
             
+            // Update shadow if layer has one
+            updateShadowForLayer(selectedLayer)
+            
             // Update guide display
             updateGuideDisplay()
             onGuidesChanged?(activeGuides)
@@ -188,6 +191,10 @@ class GestureCoordinator: NSObject {
             
         case .changed:
             selectedLayer.transform.scale = pinchStartScale * gesture.scale
+            
+            // Update shadow if layer has one
+            updateShadowForLayer(selectedLayer)
+            
             canvas.setNeedsDisplay()
             onNeedsDisplay?()
             
@@ -218,6 +225,10 @@ class GestureCoordinator: NSObject {
             
         case .changed:
             selectedLayer.transform.rotation = rotationStartAngle + gesture.rotation
+            
+            // Update shadow if layer has one
+            updateShadowForLayer(selectedLayer)
+            
             canvas.setNeedsDisplay()
             onNeedsDisplay?()
             
@@ -253,6 +264,18 @@ class GestureCoordinator: NSObject {
         // Update scroll view interaction based on selection
         scrollView?.isScrollEnabled = (canvas.selectedLayer == nil)
         scrollView?.pinchGestureRecognizer?.isEnabled = (canvas.selectedLayer == nil)
+    }
+    
+    private func updateShadowForLayer(_ layer: any Layer) {
+        guard let canvas = canvas else { return }
+        
+        for canvasLayer in canvas.layers {
+            if let shadowLayer = canvasLayer as? ShadowLayer,
+               shadowLayer.sourceLayer === layer {
+                shadowLayer.updateFromSource()
+                break
+            }
+        }
     }
 }
 

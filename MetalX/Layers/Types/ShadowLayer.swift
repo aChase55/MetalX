@@ -10,6 +10,9 @@ class ShadowLayer: BaseLayer {
     var shadowBlur: CGFloat = 4.0
     var shadowColor: CGColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.5)
     
+    // Shadow layers are internal and not shown in UI
+    override var isInternal: Bool { true }
+    
     private var shadowRenderer: ShadowRenderer?
     
     init(sourceLayer: any Layer) {
@@ -32,15 +35,16 @@ class ShadowLayer: BaseLayer {
             return nil
         }
         
-        // Calculate padding needed for blur - fixed padding regardless of blur amount
-        // This ensures the shadow size stays constant
-        let maxBlurPadding = 150 // Maximum padding for any blur amount (supports up to 100pt blur)
+        // Calculate padding needed for blur - use minimum padding when blur is 0
+        let minPadding = 20 // Minimum padding to ensure shadow is visible
+        let blurPadding = Int(shadowBlur * 1.5) // Padding based on blur amount
+        let padding = max(minPadding, blurPadding)
         
-        // Create texture for shadow with fixed padding
+        // Create texture for shadow with appropriate padding
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .bgra8Unorm,
-            width: sourceTexture.width + maxBlurPadding * 2,
-            height: sourceTexture.height + maxBlurPadding * 2,
+            width: sourceTexture.width + padding * 2,
+            height: sourceTexture.height + padding * 2,
             mipmapped: false
         )
         descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
@@ -51,9 +55,11 @@ class ShadowLayer: BaseLayer {
         }
         
         // Render shadow - we need to center the source in the padded texture
+        // Compensate blur for the scale that will be applied later
+        let compensatedBlur = Float(shadowBlur) / Float(sourceLayer.transform.scale)
         let shadowParams = ShadowRenderer.ShadowParameters(
             offset: .zero, // We'll handle offset via layer position
-            blur: Float(shadowBlur),
+            blur: max(0.001, compensatedBlur), // Ensure blur is never exactly 0
             color: colorToSIMD4(shadowColor),
             opacity: 1.0
         )
@@ -63,8 +69,8 @@ class ShadowLayer: BaseLayer {
         
         // We need to render the source at its original size but centered in the padded texture
         // This requires no scaling, just translation to center it
-        let offsetX = Float(maxBlurPadding) / Float(shadowTexture.width) * 2.0
-        let offsetY = Float(maxBlurPadding) / Float(shadowTexture.height) * 2.0
+        let offsetX = Float(padding) / Float(shadowTexture.width) * 2.0
+        let offsetY = Float(padding) / Float(shadowTexture.height) * 2.0
         
         // Adjust the transform to render centered (NDC space is -1 to 1)
         centerTransform.columns.3.x = 0.0  // Keep centered
@@ -90,10 +96,11 @@ class ShadowLayer: BaseLayer {
         // Get source bounds
         var bounds = sourceLayer.getBounds(includeEffects: false)
         
-        // Use minimal expansion since we have fixed padding in render
-        // This keeps the interactive bounds close to the visible shadow
+        // Use dynamic expansion based on blur
         let minExpansion: CGFloat = 20
-        bounds = bounds.insetBy(dx: -minExpansion, dy: -minExpansion)
+        let blurExpansion = shadowBlur * 1.5
+        let expansion = max(minExpansion, blurExpansion)
+        bounds = bounds.insetBy(dx: -expansion, dy: -expansion)
         
         // Apply offset after expansion
         bounds.origin.x += shadowOffset.width
@@ -106,17 +113,24 @@ class ShadowLayer: BaseLayer {
         guard let sourceLayer = sourceLayer else { return }
         
         // Update position to follow source layer with offset
+        // Scale the offset to maintain relative position
+        let scaledOffset = CGSize(
+            width: shadowOffset.width * sourceLayer.transform.scale,
+            height: shadowOffset.height * sourceLayer.transform.scale
+        )
         self.transform.position = CGPoint(
-            x: sourceLayer.transform.position.x + shadowOffset.width,
-            y: sourceLayer.transform.position.y + shadowOffset.height
+            x: sourceLayer.transform.position.x + scaledOffset.width,
+            y: sourceLayer.transform.position.y + scaledOffset.height
         )
         // Apply both source layer scale and shadow scale
         self.transform.scale = sourceLayer.transform.scale * sourceLayer.dropShadow.scale
         self.transform.rotation = sourceLayer.transform.rotation
         
-        // Update bounds with minimal expansion
+        // Update bounds with dynamic expansion
         let minExpansion: CGFloat = 20
-        self.bounds = sourceLayer.bounds.insetBy(dx: -minExpansion, dy: -minExpansion)
+        let blurExpansion = shadowBlur * 1.5
+        let expansion = max(minExpansion, blurExpansion)
+        self.bounds = sourceLayer.bounds.insetBy(dx: -expansion, dy: -expansion)
     }
     
     private func colorToSIMD4(_ color: CGColor) -> SIMD4<Float> {

@@ -67,6 +67,9 @@ protocol Layer: AnyObject, Identifiable {
     var dropShadow: DropShadow { get set }
     var effectStack: EffectStack { get set }
     
+    // UI visibility - set to false for internal layers like shadows
+    var isInternal: Bool { get }
+    
     // Rendering
     func render(context: RenderContext) -> MTLTexture?
     func getBounds(includeEffects: Bool) -> CGRect
@@ -93,6 +96,9 @@ class BaseLayer: Layer {
         }
         return stack
     }()
+    
+    // Most layers are visible in UI
+    var isInternal: Bool { false }
     
     func render(context: RenderContext) -> MTLTexture? {
         // Override in subclasses
