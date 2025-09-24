@@ -24,7 +24,7 @@ class VignetteEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "vignetteEffect") else {
                 print("Failed to create vignette function")
                 return texture

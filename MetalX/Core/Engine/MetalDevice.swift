@@ -314,7 +314,7 @@ public class MetalDevice {
     }
     
     public func makeDefaultLibrary() -> MTLLibrary? {
-        return device.makeDefaultLibrary()
+        return device.mxMakeDefaultLibrary()
     }
     
     public func makeRenderPipelineState(descriptor: MTLRenderPipelineDescriptor) throws -> MTLRenderPipelineState {

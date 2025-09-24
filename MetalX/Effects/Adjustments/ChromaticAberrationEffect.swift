@@ -21,7 +21,7 @@ class ChromaticAberrationEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "chromaticAberrationEffect") else {
                 print("Failed to create chromatic aberration function")
                 return texture

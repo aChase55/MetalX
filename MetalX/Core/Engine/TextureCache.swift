@@ -115,8 +115,10 @@ public struct CachedTexture {
     }
 }
 
+public struct SendableTexture: @unchecked Sendable { let texture: MTLTexture }
+
 public class LoadingTask {
-    private let task: Task<MTLTexture, Error>
+    private let task: Task<SendableTexture, Error>
     private let creationTime = Date()
     public let key: TextureCacheKey
     public let priority: TexturePriority
@@ -124,13 +126,11 @@ public class LoadingTask {
     public init(key: TextureCacheKey, priority: TexturePriority, loader: @escaping () async throws -> MTLTexture) {
         self.key = key
         self.priority = priority
-        self.task = Task {
-            try await loader()
-        }
+        self.task = Task { SendableTexture(texture: try await loader()) }
     }
     
     public func getValue() async throws -> MTLTexture {
-        return try await task.value
+        return try await task.value.texture
     }
     
     public func cancel() {

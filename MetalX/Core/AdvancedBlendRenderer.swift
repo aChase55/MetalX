@@ -33,7 +33,7 @@ class AdvancedBlendRenderer {
     }
     
     private func setupPipelines() {
-        guard let library = device.makeDefaultLibrary(),
+        guard let library = device.mxMakeDefaultLibrary(),
               let vertexFunction = library.makeFunction(name: "blendVertex"),
               let blendFunction = library.makeFunction(name: "advancedBlendFragment") else { return }
         

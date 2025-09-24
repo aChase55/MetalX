@@ -21,7 +21,7 @@ class ThresholdEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "thresholdEffect") else {
                 print("Failed to create threshold function")
                 return texture

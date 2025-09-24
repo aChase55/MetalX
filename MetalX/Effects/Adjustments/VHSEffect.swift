@@ -28,7 +28,7 @@ class VHSEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "vhsEffect") else {
                 print("Failed to create VHS function")
                 return texture

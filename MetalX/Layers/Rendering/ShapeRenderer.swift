@@ -114,7 +114,7 @@ class ShapeRenderer {
         self.device = device
         
         // Load shader library
-        guard let library = device.makeDefaultLibrary() else {
+        guard let library = device.mxMakeDefaultLibrary() else {
             throw ShapeRendererError.failedToLoadLibrary
         }
         self.library = library

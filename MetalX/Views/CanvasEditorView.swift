@@ -14,8 +14,9 @@ struct CanvasEditorView: View {
     @State private var showingSidebar = false
     @State private var showingAddMenu = false
     @State private var showingExportView = false
-    @State private var showingStickerPicker = false
     @State private var showingCanvasEffects = false
+    @State private var showingAssetPicker = false
+    @State private var showingBackgroundSettings = false
     
     // Auto-save timer
     let saveTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
@@ -52,6 +53,17 @@ struct CanvasEditorView: View {
                     .padding()
                     
                     Spacer()
+                    
+                    // Background settings button
+                    Button(action: { showingBackgroundSettings.toggle() }) {
+                        Image(systemName: "rectangle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.black.opacity(0.7))
+                            .clipShape(Circle())
+                    }
+                    .padding()
                     
                     // Canvas effects button
                     Button(action: { showingCanvasEffects.toggle() }) {
@@ -212,9 +224,9 @@ struct CanvasEditorView: View {
                     showingAddMenu = false
                     addTestLayer()
                 },
-                onAddSticker: {
+                onAddAsset: {
                     showingAddMenu = false
-                    showingStickerPicker = true
+                    showingAssetPicker = true
                 }
             )
             .presentationDetents([.medium])
@@ -236,11 +248,16 @@ struct CanvasEditorView: View {
         .sheet(isPresented: $showingExportView) {
             ExportView(canvas: canvas, isPresented: $showingExportView)
         }
-        .sheet(isPresented: $showingStickerPicker) {
-            StickerPickerView(canvas: canvas, isPresented: $showingStickerPicker)
-        }
+        // Sticker picker removed
         .sheet(isPresented: $showingCanvasEffects) {
             CanvasEffectsView(canvas: canvas, isPresented: $showingCanvasEffects)
+                .asSelfSizingSheet()
+        }
+        .sheet(isPresented: $showingAssetPicker) {
+            AssetPickerView(canvas: canvas, isPresented: $showingAssetPicker)
+        }
+        .sheet(isPresented: $showingBackgroundSettings) {
+            BackgroundSettingsView(canvas: canvas, isPresented: $showingBackgroundSettings)
                 .asSelfSizingSheet()
         }
         .onChange(of: selectedItem) { _, newImage in
@@ -273,6 +290,9 @@ struct CanvasEditorView: View {
     
     private func loadProject() {
         canvas.loadFromProject(project)
+        
+        // Initialize background layer if not already present
+        canvas.initializeBackgroundLayer()
         
         // Check if any layers are outside the canvas bounds
         var needsRepositioning = false
@@ -442,7 +462,7 @@ struct AddContentMenu: View {
     let onAddText: () -> Void
     let onAddShape: (ShapeType) -> Void
     let onAddTestLayer: () -> Void
-    let onAddSticker: () -> Void
+    let onAddAsset: () -> Void
     
     var body: some View {
         NavigationStack {
@@ -461,8 +481,10 @@ struct AddContentMenu: View {
                         }
                     }
                     
-                    Button(action: onAddSticker) {
-                        Label("Sticker", systemImage: "face.smiling")
+                    // Sticker option removed
+                    
+                    Button(action: onAddAsset) {
+                        Label("Assets", systemImage: "sparkles")
                     }
                     
                     Button(action: onAddText) {

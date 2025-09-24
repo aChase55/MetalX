@@ -44,7 +44,7 @@ class ShadowRenderer {
     }
     
     private func setupPipelines() throws {
-        guard let library = device.makeDefaultLibrary() else {
+        guard let library = device.mxMakeDefaultLibrary() else {
             throw ShadowError.libraryNotFound
         }
         

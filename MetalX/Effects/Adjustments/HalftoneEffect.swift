@@ -24,7 +24,7 @@ class HalftoneEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "halftoneEffect") else {
                 print("Failed to create halftone function")
                 return texture

@@ -123,6 +123,27 @@ class MetalXRenderer {
         var currentTexture = accumulationTexture
         var targetTexture = tempTexture
         
+        // Render background layer first if it exists (via quad to handle scaling)
+        if let backgroundLayer = canvas.backgroundLayer,
+           backgroundLayer.isVisible,
+           let backgroundTexture = getLayerTexture(backgroundLayer) {
+            let pass = MTLRenderPassDescriptor()
+            pass.colorAttachments[0].texture = currentTexture
+            pass.colorAttachments[0].loadAction = .load
+            pass.colorAttachments[0].storeAction = .store
+            if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) {
+                let transform = calculateTransformMatrix(for: backgroundLayer, canvasSize: canvas.size)
+                quadRenderer?.render(
+                    encoder: encoder,
+                    texture: backgroundTexture,
+                    transform: transform,
+                    opacity: 1.0,
+                    blendMode: .normal
+                )
+                encoder.endEncoding()
+            }
+        }
+        
         for layer in canvas.layers where layer.isVisible {
             guard let layerTexture = getLayerTexture(layer) else { continue }
             
@@ -211,6 +232,11 @@ class MetalXRenderer {
         selectionTime: Float
     ) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        
+        // Render background layer first if it exists
+        if let backgroundLayer = canvas.backgroundLayer, backgroundLayer.isVisible {
+            renderLayer(backgroundLayer, encoder: encoder, canvasSize: canvas.size)
+        }
         
         for layer in canvas.layers where layer.isVisible {
             renderLayer(layer, encoder: encoder, canvasSize: canvas.size)
@@ -301,6 +327,10 @@ class MetalXRenderer {
         } else if let shapeLayer = layer as? VectorShapeLayer {
             if let context = sharedRenderContext {
                 texture = shapeLayer.render(context: context)
+            }
+        } else if let background = layer as? BackgroundLayer {
+            if let context = sharedRenderContext {
+                texture = background.render(context: context)
             }
         } else if let shadowLayer = layer as? ShadowLayer {
             if let context = sharedRenderContext {

@@ -6,9 +6,15 @@ import Combine
 class Canvas: ObservableObject {
     @Published private(set) var layers: [any Layer] = []
     @Published var selectedLayer: (any Layer)?
+    @Published var backgroundLayer: BackgroundLayer?
     
     // Canvas properties
-    var size: CGSize = CGSize(width: 1024, height: 1024)
+    var size: CGSize = CGSize(width: 1024, height: 1024) {
+        didSet {
+            // Update background layer size when canvas size changes
+            backgroundLayer?.updateBoundsToCanvas()
+        }
+    }
     var backgroundColor: CGColor = CGColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
     lazy var effectStack: EffectStack = {
         let stack = EffectStack()
@@ -296,6 +302,21 @@ class Canvas: ObservableObject {
                 updateZIndices()
             }
         }
+        setNeedsDisplay()
+    }
+    
+    // Background layer management
+    func initializeBackgroundLayer() {
+        if backgroundLayer == nil {
+            backgroundLayer = BackgroundLayer(canvas: self)
+            // Set initial fill from backgroundColor
+            backgroundLayer?.fillType = .solid(backgroundColor)
+        }
+    }
+    
+    func setBackgroundFill(_ fillType: BackgroundLayer.FillType) {
+        initializeBackgroundLayer()
+        backgroundLayer?.fillType = fillType
         setNeedsDisplay()
     }
 }

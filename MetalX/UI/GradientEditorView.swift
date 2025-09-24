@@ -24,7 +24,6 @@ struct GradientEditorView: View {
                     Text("Angular").tag(Gradient.GradientType.angular)
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal)
                 .onChange(of: gradientData.type) { _, _ in
                     onApply()
                 }
@@ -68,7 +67,6 @@ struct GradientEditorView: View {
                     }
                     .frame(maxHeight: 200)
                 }
-                .padding(.horizontal)
                 
                 // Selected color editor
                 if let selectedIndex = selectedStopIndex {
@@ -85,7 +83,6 @@ struct GradientEditorView: View {
                     .padding()
                     .background(Color(UIColor.tertiarySystemBackground))
                     .cornerRadius(8)
-                    .padding(.horizontal)
                 }
                 
                 // Direction controls for linear gradient
@@ -101,25 +98,6 @@ struct GradientEditorView: View {
                             directionButton(.leading, .trailing, "arrow.right")
                         }
                     }
-                    .padding(.horizontal)
-                }
-                
-                Spacer()
-            }
-            .navigationTitle("Edit Gradient")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Apply") {
-                        onApply()
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
                 }
             }
         }

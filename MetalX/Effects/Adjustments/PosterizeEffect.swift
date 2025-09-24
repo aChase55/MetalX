@@ -18,7 +18,7 @@ class PosterizeEffect: BaseEffect {
         
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "posterizeEffect") else {
                 print("Failed to create posterize function")
                 return texture

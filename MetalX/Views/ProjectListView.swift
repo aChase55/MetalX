@@ -1,13 +1,15 @@
 import SwiftUI
 
-struct ProjectListView: View {
+public struct ProjectListView: View {
     @StateObject private var projectList = ProjectListModel()
     @State private var showingNewProjectSheet = false
     @State private var selectedProject: MetalXProject?
     @State private var showingDeleteConfirmation = false
     @State private var projectToDelete: MetalXProject?
     
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         NavigationStack {
             ScrollView {
                 if projectList.projects.isEmpty {

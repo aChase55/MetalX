@@ -18,7 +18,9 @@ class QuadRenderer {
     
     func setupPipeline() {
         // SIMPLE - No error handling yet, just crash if it fails
-        let library = device.makeDefaultLibrary()!
+        guard let library = device.mxMakeDefaultLibrary() else {
+            fatalError("MetalX: Failed to load default shader library")
+        }
         let vertexFunction = library.makeFunction(name: "quadVertex")!
         let fragmentFunction = library.makeFunction(name: "quadFragment")!
         

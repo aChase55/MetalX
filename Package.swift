@@ -4,24 +4,17 @@ import PackageDescription
 
 let package = Package(
     name: "MetalX",
+    // MetalX UI relies on UIKit; keep the package iOS-only for now.
     platforms: [
-        .iOS(.v16),
-        .macOS(.v13)
+        .iOS(.v17)
     ],
     products: [
         .library(
             name: "MetalX",
             targets: ["MetalX"]
-        ),
-        .library(
-            name: "MetalXUI",
-            targets: ["MetalXUI"]
         )
     ],
     dependencies: [
-        // Core ML Models (for style transfer, segmentation, etc.)
-        .package(url: "https://github.com/apple/ml-stable-diffusion", from: "1.0.0"),
-        
         // Async Algorithms for stream processing
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         
@@ -35,15 +28,11 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log", from: "1.5.0"),
         
         // Compression for asset management
-        .package(url: "https://github.com/tsolomko/SWCompression", from: "4.8.0"),
-        
-        // Testing tools
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.15.0"),
-        
-        // Benchmarking
-        .package(url: "https://github.com/apple/swift-benchmark", from: "0.1.2")
+        .package(url: "https://github.com/tsolomko/SWCompression", from: "4.8.0")
     ],
     targets: [
+        // Single target that contains Core + UI code.
+        // We exclude app/demo Xcode-specific files and assets not needed by SPM.
         .target(
             name: "MetalX",
             dependencies: [
@@ -53,41 +42,26 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "SWCompression", package: "SWCompression")
             ],
+            path: "MetalX",
+            sources: [
+                // Source trees inside MetalX/MetalX
+                "Core",
+                "Effects",
+                "Layers",
+                "Models",
+                "Typography",
+                "UI",
+                "Views"
+            ],
+            // Let SwiftPM process shaders as resources so the compiled
+            // .metallib is embedded in the package bundle (Bundle.module).
             resources: [
-                .process("Shaders"),
-                .process("Models"),
-                .process("Resources")
+                .process("Shaders")
             ],
             swiftSettings: [
                 .define("DEBUG", .when(configuration: .debug)),
                 .define("METAL_VALIDATION", .when(configuration: .debug))
             ]
-        ),
-        .target(
-            name: "MetalXUI",
-            dependencies: ["MetalX"],
-            resources: [
-                .process("Assets")
-            ]
-        ),
-        .testTarget(
-            name: "MetalXTests",
-            dependencies: [
-                "MetalX",
-                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-                .product(name: "Benchmark", package: "swift-benchmark")
-            ],
-            resources: [
-                .process("TestResources"),
-                .process("ReferenceImages")
-            ]
         )
     ]
 )
-
-// Development dependencies (not included in release)
-#if os(macOS)
-package.dependencies.append(
-    .package(url: "https://github.com/apple/swift-format", from: "509.0.0")
-)
-#endif

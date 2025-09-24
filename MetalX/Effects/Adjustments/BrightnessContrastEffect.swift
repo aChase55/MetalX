@@ -20,7 +20,7 @@ class BrightnessContrastEffect: BaseEffect {
     override func apply(to texture: MTLTexture, commandBuffer: MTLCommandBuffer, device: MTLDevice) -> MTLTexture? {
         // Create pipeline state if needed
         if pipelineState == nil {
-            guard let library = device.makeDefaultLibrary(),
+            guard let library = device.mxMakeDefaultLibrary(),
                   let function = library.makeFunction(name: "brightnessContrast"),
                   let pipeline = try? device.makeComputePipelineState(function: function) else {
                 return nil
