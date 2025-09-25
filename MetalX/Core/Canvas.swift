@@ -15,7 +15,7 @@ class Canvas: ObservableObject {
             backgroundLayer?.updateBoundsToCanvas()
         }
     }
-    var backgroundColor: CGColor = CGColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+    var backgroundColor: CGColor = CGColor(red: 1, green: 1, blue: 1, alpha: 1)
     lazy var effectStack: EffectStack = {
         let stack = EffectStack()
         stack.onUpdate = { [weak self] in

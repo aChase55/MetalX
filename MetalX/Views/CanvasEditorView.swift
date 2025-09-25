@@ -55,29 +55,6 @@ public struct CanvasEditorView: View {
                 
                 // Bottom area - Selected layer pill
                 VStack {
-                    // Save status
-                    HStack {
-                        VStack {
-                            if hasUnsavedChanges {
-                                Label("Unsaved changes", systemImage: "exclamationmark.circle.fill")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                                    .padding(8)
-                                    .background(Color.black.opacity(0.7))
-                                    .cornerRadius(8)
-                            } else {
-                                Label("All changes saved", systemImage: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                                    .padding(8)
-                                    .background(Color.black.opacity(0.7))
-                                    .cornerRadius(8)
-                            }
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    
                     // Selected layer pill
                     SelectedLayerPill(canvas: canvas)
                         .transition(.move(edge: .bottom).combined(with: .opacity))

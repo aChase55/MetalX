@@ -565,7 +565,15 @@ class LayerFactory {
 extension Canvas {
     func toProject(name: String) -> MetalXProject {
         var project = MetalXProject(name: name, canvasSize: size)
-        project.backgroundColor = CodableColor(red: 0, green: 0, blue: 0, alpha: 1)
+        // Persist solid background color when present; gradients/images are not yet serialized
+        if let bg = backgroundLayer {
+            switch bg.fillType {
+            case .solid(let cg):
+                project.backgroundColor = CodableColor(cgColor: cg)
+            default:
+                break
+            }
+        }
         // Filter out shadow layers when saving - they'll be recreated on load
         project.layers = layers.compactMap { layer in
             // Skip shadow layers

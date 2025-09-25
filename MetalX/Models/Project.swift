@@ -23,7 +23,7 @@ public struct MetalXProject: Codable, Hashable, Equatable {
         self.createdDate = Date()
         self.modifiedDate = Date()
         self.canvasSize = canvasSize
-        self.backgroundColor = CodableColor(red: 0, green: 0, blue: 0, alpha: 1)
+        self.backgroundColor = CodableColor(red: 1, green: 1, blue: 1, alpha: 1)
         self.layers = []
     }
 }

@@ -23,6 +23,21 @@ class BackgroundLayer: BaseLayer {
     private var cachedTexture: MTLTexture?
     private var cachedFillType: String = ""
     
+    // Cached pipelines for gradient rendering
+    private var gradientLinearPSO: MTLRenderPipelineState?
+    private var gradientRadialPSO: MTLRenderPipelineState?
+    private var gradientAngularPSO: MTLRenderPipelineState?
+    
+    // Vertex descriptor for a simple quad (float2 positions)
+    private lazy var quadVertexDescriptor: MTLVertexDescriptor = {
+        let vd = MTLVertexDescriptor()
+        vd.attributes[0].format = .float2
+        vd.attributes[0].offset = 0
+        vd.attributes[0].bufferIndex = 0
+        vd.layouts[0].stride = MemoryLayout<SIMD2<Float>>.stride
+        return vd
+    }()
+    
     init(canvas: Canvas) {
         self.canvas = canvas
         super.init()
@@ -107,26 +122,125 @@ class BackgroundLayer: BaseLayer {
     }
     
     private func renderGradient(_ gradient: Gradient, to texture: MTLTexture, context: RenderContext, commandBuffer: MTLCommandBuffer) {
-        // For now, just render a solid color as placeholder
-        // TODO: Implement proper gradient rendering
-        let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = texture
-        renderPassDescriptor.colorAttachments[0].loadAction = .clear
-        renderPassDescriptor.colorAttachments[0].storeAction = .store
-        
-        // Use first color stop as solid fill
-        if let firstStop = gradient.colorStops.first {
-            let components = firstStop.color.components ?? [0, 0, 0, 1]
-            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(
-                red: Double(components[safe: 0] ?? 0),
-                green: Double(components[safe: 1] ?? 0),
-                blue: Double(components[safe: 2] ?? 0),
-                alpha: Double(components[safe: 3] ?? 1)
-            )
+        guard let device = context.device.device.mxMakeDefaultLibrary()?.device else {
+            // Fallback to solid first color if library unavailable
+            if let first = gradient.colorStops.first?.color {
+                renderSolidColor(first, to: texture, commandBuffer: commandBuffer)
+            }
+            return
         }
         
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else { return }
+        // Lazily set up pipeline states
+        if gradientLinearPSO == nil || gradientRadialPSO == nil || gradientAngularPSO == nil {
+            setupGradientPipelines(device: device)
+        }
+        
+        // Choose pipeline based on gradient type
+        let pso: MTLRenderPipelineState?
+        switch gradient.type {
+        case .linear: pso = gradientLinearPSO
+        case .radial: pso = gradientRadialPSO
+        case .angular: pso = gradientAngularPSO
+        }
+        guard let pipelineState = pso else { return }
+        
+        // Prepare encoder
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        
+        // Full-quad vertices in pixel space centered at (0,0): [-w/2..w/2]
+        let w = Float(texture.width)
+        let h = Float(texture.height)
+        let halfW = w * 0.5
+        let halfH = h * 0.5
+        var quad: [SIMD2<Float>] = [
+            SIMD2<Float>(-halfW, -halfH),
+            SIMD2<Float>( halfW, -halfH),
+            SIMD2<Float>(-halfW,  halfH),
+            SIMD2<Float>( halfW,  halfH),
+        ]
+        // Transform from pixel to NDC (-1..1)
+        let pixelToNDC = SIMD2<Float>(2.0 / w, -2.0 / h)
+        var transform = matrix_identity_float4x4
+        transform.columns.0.x = pixelToNDC.x
+        transform.columns.1.y = pixelToNDC.y
+        
+        // Build gradient uniforms
+        struct GradientUniforms
+        {
+            var transform: matrix_float4x4
+            var color0,color1,color2,color3,color4,color5,color6,color7: SIMD4<Float>
+            var location0,location1,location2,location3,location4,location5,location6,location7: Float
+            var colorCount: Int32
+            var gradientType: Int32
+            var startPoint: SIMD2<Float>
+            var endPoint: SIMD2<Float>
+        }
+        func colorToSIMD(_ c: CGColor) -> SIMD4<Float> {
+            let comps = c.components ?? [0,0,0,1]
+            let r = Float(comps[safe: 0] ?? 0)
+            let g = Float(comps[safe: 1] ?? 0)
+            let b = Float((comps.count > 2 ? comps[2] : comps[0]))
+            let a = Float(comps.last ?? 1)
+            return SIMD4<Float>(r,g,b,a)
+        }
+        var u = GradientUniforms(
+            transform: transform,
+            color0: .zero, color1: .zero, color2: .zero, color3: .zero,
+            color4: .zero, color5: .zero, color6: .zero, color7: .zero,
+            location0: 0, location1: 0, location2: 0, location3: 0,
+            location4: 0, location5: 0, location6: 0, location7: 0,
+            colorCount: Int32(min(gradient.colorStops.count, 8)),
+            gradientType: 0,
+            startPoint: SIMD2<Float>(Float(gradient.startPoint.x), Float(gradient.startPoint.y)),
+            endPoint: SIMD2<Float>(Float(gradient.endPoint.x), Float(gradient.endPoint.y))
+        )
+        for (idx, stop) in gradient.colorStops.prefix(8).enumerated() {
+            let col = colorToSIMD(stop.color)
+            switch idx {
+            case 0: u.color0 = col; u.location0 = stop.location
+            case 1: u.color1 = col; u.location1 = stop.location
+            case 2: u.color2 = col; u.location2 = stop.location
+            case 3: u.color3 = col; u.location3 = stop.location
+            case 4: u.color4 = col; u.location4 = stop.location
+            case 5: u.color5 = col; u.location5 = stop.location
+            case 6: u.color6 = col; u.location6 = stop.location
+            case 7: u.color7 = col; u.location7 = stop.location
+            default: break
+            }
+        }
+        var shapeSize = SIMD2<Float>(w, h)
+        
+        // Set pipeline and resources
+        encoder.setRenderPipelineState(pipelineState)
+        encoder.setVertexBytes(&quad, length: MemoryLayout<SIMD2<Float>>.stride * quad.count, index: 0)
+        encoder.setVertexBytes(&u, length: MemoryLayout<GradientUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&u, length: MemoryLayout<GradientUniforms>.stride, index: 0)
+        encoder.setFragmentBytes(&shapeSize, length: MemoryLayout<SIMD2<Float>>.stride, index: 1)
+        
+        // Draw as triangle strip
+        encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         encoder.endEncoding()
+    }
+    
+    private func setupGradientPipelines(device: MTLDevice) {
+        guard let library = device.mxMakeDefaultLibrary() else { return }
+        func makePSO(fragment: String) -> MTLRenderPipelineState? {
+            let desc = MTLRenderPipelineDescriptor()
+            desc.vertexFunction = library.makeFunction(name: "shapeVertex")
+            desc.fragmentFunction = library.makeFunction(name: fragment)
+            desc.vertexDescriptor = quadVertexDescriptor
+            desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+            desc.colorAttachments[0].isBlendingEnabled = false
+            return try? device.makeRenderPipelineState(descriptor: desc)
+        }
+        gradientLinearPSO = makePSO(fragment: "shapeLinearGradient")
+        gradientRadialPSO = makePSO(fragment: "shapeRadialGradient")
+        gradientAngularPSO = makePSO(fragment: "shapeAngularGradient")
     }
     
     private func renderImage(_ image: UIImage, to texture: MTLTexture, context: RenderContext, commandBuffer: MTLCommandBuffer) {

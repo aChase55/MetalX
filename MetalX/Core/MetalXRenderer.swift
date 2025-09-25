@@ -434,10 +434,14 @@ class MetalXRenderer {
         let scaleY = size.height / canvas.size.height
         let scale = min(scaleX, scaleY) // Maintain aspect ratio
         
-        // Render all visible layers
+        // Render background first if present
         if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
             print("MetalXRenderer: Rendering \(canvas.layers.filter { $0.isVisible }.count) visible layers")
             print("MetalXRenderer: Canvas size: \(canvas.size), Export size: \(size), Scale: \(scale)")
+
+            if let backgroundLayer = canvas.backgroundLayer, backgroundLayer.isVisible {
+                renderLayerForExport(backgroundLayer, encoder: encoder, canvasSize: canvas.size, exportSize: size, scale: scale)
+            }
             
             for layer in canvas.layers where layer.isVisible {
                 print("MetalXRenderer: Rendering layer: \(layer.name) at position: \(layer.transform.position)")
