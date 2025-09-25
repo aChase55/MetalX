@@ -1,13 +1,24 @@
 import SwiftUI
 import PhotosUI
+import UIKit
+import Metal
 
 public struct CanvasEditorView: View {
     let project: MetalXProject
     let projectList: ProjectListModel
+    @Binding var exportTrigger: Bool
+    let onExportImage: ((UIImage) -> Void)?
     
-    public init(project: MetalXProject, projectList: ProjectListModel) {
+    public init(
+        project: MetalXProject,
+        projectList: ProjectListModel,
+        exportTrigger: Binding<Bool> = .constant(false),
+        onExportImage: ((UIImage) -> Void)? = nil
+    ) {
         self.project = project
         self.projectList = projectList
+        self._exportTrigger = exportTrigger
+        self.onExportImage = onExportImage
     }
     
     @StateObject private var canvas = Canvas()
@@ -290,6 +301,23 @@ public struct CanvasEditorView: View {
                 saveProject()
             }
         }
+        .onChange(of: exportTrigger) { _ in
+            // Perform export when trigger flips
+            if let image = exportCanvasImage(size: canvas.size) {
+                onExportImage?(image)
+            }
+        }
+    }
+
+    // MARK: - Export
+    /// Exports the current canvas to a UIImage.
+    /// - Parameter size: Optional export size. Defaults to the canvas size.
+    /// - Returns: A rendered UIImage of the canvas, or nil if export fails.
+    public func exportCanvasImage(size: CGSize? = nil) -> UIImage? {
+        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        let renderer = MetalXRenderer(device: device)
+        let exportSize = size ?? canvas.size
+        return renderer.renderToUIImage(canvas: canvas, size: exportSize)
     }
     
     // MARK: - Project Management
