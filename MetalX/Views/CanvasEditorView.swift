@@ -38,61 +38,8 @@ public struct CanvasEditorView: View {
                     hasUnsavedChanges = true
                 }
             
-            // Floating controls overlay
+            // Floating controls overlay (left sidebar and bottom selected pill)
             VStack {
-                // Top toolbar
-                HStack {
-                    // Toggle sidebar button
-                    Button(action: { 
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingSidebar.toggle()
-                        }
-                    }) {
-                        Image(systemName: "sidebar.left")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding()
-                    
-                    Spacer()
-                    
-                    // Background settings button
-                    Button(action: { showingBackgroundSettings.toggle() }) {
-                        Image(systemName: "rectangle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding()
-                    
-                    // Canvas effects button
-                    Button(action: { showingCanvasEffects.toggle() }) {
-                        Image(systemName: "wand.and.stars")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding()
-                    
-                    // Add content button
-                    Button(action: { showingAddMenu.toggle() }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding()
-                }
-                
                 Spacer()
                 
                 // Bottom area - Selected layer pill
@@ -211,6 +158,60 @@ public struct CanvasEditorView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+            }
+        }
+        // Bottom Tab Bar for primary actions when no layer is selected
+        .safeAreaInset(edge: .bottom) {
+            if canvas.selectedLayer == nil {
+                HStack {
+                    // Sidebar
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showingSidebar.toggle()
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "sidebar.left")
+                            Text("Layers")
+                                .font(.caption2)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Background
+                    Button(action: { showingBackgroundSettings = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "rectangle.fill")
+                            Text("Background")
+                                .font(.caption2)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Effects
+                    Button(action: { showingCanvasEffects = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "wand.and.stars")
+                            Text("Effects")
+                                .font(.caption2)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Add
+                    Button(action: { showingAddMenu = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "plus.circle")
+                            Text("Add")
+                                .font(.caption2)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .background(.ultraThinMaterial)
             }
         }
         .sheet(isPresented: $showingAddMenu) {
