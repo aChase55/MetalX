@@ -5,37 +5,44 @@ struct GradientPreview: View {
     
     var body: some View {
         GeometryReader { geometry in
-            Rectangle()
-                .fill(gradientShape(in: geometry.size))
+            gradientFill(in: geometry.size)
         }
     }
     
-    private func gradientShape(in size: CGSize) -> AnyShapeStyle {
+    // Returning a concrete View avoids using AnyShapeStyle,
+    // which is unavailable on older iOS 16 toolchains.
+    @ViewBuilder
+    private func gradientFill(in size: CGSize) -> some View {
         let stops = zip(gradientData.colors, gradientData.locations).map { color, location in
             SwiftUI.Gradient.Stop(color: color, location: CGFloat(location))
         }
-        
         let gradient = SwiftUI.Gradient(stops: stops)
         
         switch gradientData.type {
         case .linear:
-            return AnyShapeStyle(LinearGradient(
-                gradient: gradient,
-                startPoint: gradientData.linearStartPoint,
-                endPoint: gradientData.linearEndPoint
-            ))
+            Rectangle().fill(
+                LinearGradient(
+                    gradient: gradient,
+                    startPoint: gradientData.linearStartPoint,
+                    endPoint: gradientData.linearEndPoint
+                )
+            )
         case .radial:
-            return AnyShapeStyle(RadialGradient(
-                gradient: gradient,
-                center: gradientData.radialCenter,
-                startRadius: 0,
-                endRadius: size.width * CGFloat(gradientData.radialRadius)
-            ))
+            Rectangle().fill(
+                RadialGradient(
+                    gradient: gradient,
+                    center: gradientData.radialCenter,
+                    startRadius: 0,
+                    endRadius: size.width * CGFloat(gradientData.radialRadius)
+                )
+            )
         case .angular:
-            return AnyShapeStyle(AngularGradient(
-                gradient: gradient,
-                center: gradientData.radialCenter
-            ))
+            Rectangle().fill(
+                AngularGradient(
+                    gradient: gradient,
+                    center: gradientData.radialCenter
+                )
+            )
         }
     }
 }

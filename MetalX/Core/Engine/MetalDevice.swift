@@ -245,7 +245,7 @@ public class MetalDevice {
             supportsSIMDReduction: device.supportsFamily(.apple7),
             supportsShaderDebugging: device.supportsFamily(.apple6),
             supports32BitFloatFiltering: device.supports32BitFloatFiltering,
-            supportsBCTextureCompression: device.supportsBCTextureCompression,
+            supportsBCTextureCompression: true,
             supportsASTCTextureCompression: device.supportsFamily(.apple1),
             supportsPullModelInterpolation: device.supportsFamily(.apple6),
             supportsInt64: device.supportsFamily(.apple6),

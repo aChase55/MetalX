@@ -24,7 +24,7 @@ struct GradientEditorView: View {
                     Text("Angular").tag(Gradient.GradientType.angular)
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .onChange(of: gradientData.type) { _, _ in
+                .onChange(of: gradientData.type) { _  in
                     onApply()
                 }
                 
@@ -75,7 +75,7 @@ struct GradientEditorView: View {
                             .font(.headline)
                         
                         ColorPicker("Color", selection: $tempColor)
-                            .onChange(of: tempColor) { _, newColor in
+                            .onChange(of: tempColor) {  newColor in
                                 gradientData.colors[selectedIndex] = newColor
                                 onApply()
                             }

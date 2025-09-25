@@ -6,7 +6,7 @@ let package = Package(
     name: "MetalX",
     // MetalX UI relies on UIKit; keep the package iOS-only for now.
     platforms: [
-        .iOS(.v17)
+        .iOS(.v16)
     ],
     products: [
         .library(

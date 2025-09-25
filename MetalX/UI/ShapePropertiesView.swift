@@ -51,7 +51,7 @@ struct ShapePropertiesView: View {
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
-                    .onChange(of: selectedFillType) { _, newValue in
+                    .onChange(of: selectedFillType) { newValue in
                         updateFillType(newValue)
                     }
                 }
@@ -66,7 +66,7 @@ struct ShapePropertiesView: View {
                         
                         ColorPicker("Color", selection: $solidColor)
                             .labelsHidden()
-                            .onChange(of: solidColor) { _, newColor in
+                            .onChange(of: solidColor) { newColor in
                                 updateSolidColor(newColor)
                             }
                     }
@@ -152,7 +152,7 @@ struct ShapePropertiesView: View {
                             EmptyView()
                         }
                         .frame(height: 120)
-                        .onChange(of: selectedPhotoItem) { _, newItem in
+                        .onChange(of: selectedPhotoItem) { newItem in
                             Task {
                                 if let newItem = newItem,
                                    let data = try? await newItem.loadTransferable(type: Data.self),
@@ -201,7 +201,7 @@ struct ShapePropertiesView: View {
                                             canvas.updateShadowForLayer(shape)
                                         }
                                     ), in: -100...100)
-                                    .onChange(of: shape.dropShadow.offset.width) {
+                                    .onChange(of: shape.dropShadow.offset.width) { _ in
                                         canvas.capturePropertyChange(actionName: "Change Shadow Offset")
                                     }
                                     Text("\(Int(shape.dropShadow.offset.width))")
@@ -220,7 +220,7 @@ struct ShapePropertiesView: View {
                                             canvas.updateShadowForLayer(shape)
                                         }
                                     ), in: -100...100)
-                                    .onChange(of: shape.dropShadow.offset.height) {
+                                    .onChange(of: shape.dropShadow.offset.height) { _ in
                                         canvas.capturePropertyChange(actionName: "Change Shadow Offset")
                                     }
                                     Text("\(Int(shape.dropShadow.offset.height))")
@@ -241,7 +241,7 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0...100)
-                            .onChange(of: shape.dropShadow.blur) {
+                            .onChange(of: shape.dropShadow.blur) { _ in
                                 canvas.capturePropertyChange(actionName: "Change Shadow Blur")
                             }
                             Text("\(Int(shape.dropShadow.blur))")
@@ -260,7 +260,7 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0.5...2.0)
-                            .onChange(of: shape.dropShadow.scale) {
+                            .onChange(of: shape.dropShadow.scale) { _ in
                                 canvas.capturePropertyChange(actionName: "Change Shadow Scale")
                             }
                             Text(String(format: "%.1fx", shape.dropShadow.scale))
@@ -279,7 +279,7 @@ struct ShapePropertiesView: View {
                                     canvas.updateShadowForLayer(shape)
                                 }
                             ), in: 0...1)
-                            .onChange(of: shape.dropShadow.opacity) {
+                            .onChange(of: shape.dropShadow.opacity) { _ in
                                 canvas.capturePropertyChange(actionName: "Change Shadow Opacity")
                             }
                             Text("\(Int(shape.dropShadow.opacity * 100))%")

@@ -112,7 +112,7 @@ struct SelectedLayerPill: View {
                 )
                 .asSelfSizingSheet()
                 .presentationDragIndicator(.visible)
-                .presentationBackgroundInteraction(.enabled)
+                .modifier(BackgroundInteractionCompat())
                 .interactiveDismissDisabled(false)
             })
         }
@@ -128,9 +128,24 @@ extension View {
 
 struct SelfSizingSheet: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .presentationDetents([.medium, .large])
-            .presentationContentInteraction(.scrolls)
+        if #available(iOS 16.4, *) {
+            content
+                .presentationDetents([.medium, .large])
+                .presentationContentInteraction(.scrolls)
+        } else {
+            content
+                .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+struct BackgroundInteractionCompat: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackgroundInteraction(.enabled)
+        } else {
+            content
+        }
     }
 }
 
@@ -525,7 +540,7 @@ struct LayerPropertySheet: View {
                                     canvas.updateShadowForLayer(layer)
                                 }
                             ), in: -100...100)
-                            .onChange(of: layer.dropShadow.offset.width) {
+                            .onChange(of: layer.dropShadow.offset.width) { _ in
                                 canvas.capturePropertyChange(actionName: "Change Shadow Offset")
                             }
                             Text("\(Int(layer.dropShadow.offset.width))")
@@ -546,7 +561,7 @@ struct LayerPropertySheet: View {
                                     canvas.updateShadowForLayer(layer)
                                 }
                             ), in: -100...100)
-                            .onChange(of: layer.dropShadow.offset.height) {
+                            .onChange(of: layer.dropShadow.offset.height) { _ in
                                 canvas.capturePropertyChange(actionName: "Change Shadow Offset")
                             }
                             Text("\(Int(layer.dropShadow.offset.height))")
@@ -577,7 +592,7 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0...100)
                     .accentColor(.blue)
-                    .onChange(of: layer.dropShadow.blur) {
+                    .onChange(of: layer.dropShadow.blur) { _ in
                         canvas.capturePropertyChange(actionName: "Change Shadow Blur")
                     }
                 }
@@ -602,7 +617,7 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0.5...2.0)
                     .accentColor(.blue)
-                    .onChange(of: layer.dropShadow.scale) {
+                    .onChange(of: layer.dropShadow.scale) { _ in
                         canvas.capturePropertyChange(actionName: "Change Shadow Scale")
                     }
                 }
@@ -627,7 +642,7 @@ struct LayerPropertySheet: View {
                         }
                     ), in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: layer.dropShadow.opacity) {
+                    .onChange(of: layer.dropShadow.opacity) { _ in
                         canvas.capturePropertyChange(actionName: "Change Shadow Opacity")
                     }
                 }

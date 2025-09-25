@@ -143,7 +143,7 @@ struct EffectRow: View {
                 .onTapGesture {
                     // Prevent button action when using slider
                 }
-                .onChange(of: effect.intensity) {
+                .onChange(of: effect.intensity) { _ in
                     canvas.capturePropertyChange(actionName: "Change Effect Intensity")
                     canvas.setNeedsDisplay()
                 }
@@ -282,7 +282,7 @@ struct BrightnessContrastControls: View {
                 
                 Slider(value: $effect.brightness, in: -1...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.brightness) {
+                    .onChange(of: effect.brightness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Brightness")
                         canvas.setNeedsDisplay()
                     }
@@ -300,7 +300,7 @@ struct BrightnessContrastControls: View {
                 
                 Slider(value: $effect.contrast, in: 0...2)
                     .accentColor(.blue)
-                    .onChange(of: effect.contrast) {
+                    .onChange(of: effect.contrast) { _ in
                         canvas.capturePropertyChange(actionName: "Change Contrast")
                         canvas.setNeedsDisplay()
                     }
@@ -339,7 +339,7 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.hueShift, in: -180...180)
                     .accentColor(.blue)
-                    .onChange(of: effect.hueShift) {
+                    .onChange(of: effect.hueShift) { _ in
                         canvas.capturePropertyChange(actionName: "Change Hue")
                         canvas.setNeedsDisplay()
                     }
@@ -357,7 +357,7 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.saturation, in: 0...2)
                     .accentColor(.blue)
-                    .onChange(of: effect.saturation) {
+                    .onChange(of: effect.saturation) { _ in
                         canvas.capturePropertyChange(actionName: "Change Saturation")
                         canvas.setNeedsDisplay()
                     }
@@ -375,7 +375,7 @@ struct HueSaturationControls: View {
                 
                 Slider(value: $effect.lightness, in: -1...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.lightness) {
+                    .onChange(of: effect.lightness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Lightness")
                         canvas.setNeedsDisplay()
                     }
@@ -415,7 +415,7 @@ struct PixellateControls: View {
                 }
                 Slider(value: $effect.pixelSize, in: 1...32)
                     .accentColor(.blue)
-                    .onChange(of: effect.pixelSize) {
+                    .onChange(of: effect.pixelSize) { _ in
                         canvas.capturePropertyChange(actionName: "Change Pixel Size")
                         canvas.setNeedsDisplay()
                     }
@@ -440,7 +440,7 @@ struct NoiseControls: View {
                 }
                 Slider(value: $effect.amount, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.amount) {
+                    .onChange(of: effect.amount) { _ in
                         canvas.capturePropertyChange(actionName: "Change Noise Amount")
                         canvas.setNeedsDisplay()
                     }
@@ -456,7 +456,7 @@ struct NoiseControls: View {
                 }
                 Slider(value: $effect.seed, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.seed) {
+                    .onChange(of: effect.seed) { _ in
                         canvas.capturePropertyChange(actionName: "Change Noise Seed")
                         canvas.setNeedsDisplay()
                     }
@@ -481,7 +481,7 @@ struct ThresholdControls: View {
                 }
                 Slider(value: $effect.threshold, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.threshold) {
+                    .onChange(of: effect.threshold) { _ in
                         canvas.capturePropertyChange(actionName: "Change Threshold")
                         canvas.setNeedsDisplay()
                     }
@@ -497,7 +497,7 @@ struct ThresholdControls: View {
                 }
                 Slider(value: $effect.smoothness, in: 0...0.1)
                     .accentColor(.blue)
-                    .onChange(of: effect.smoothness) {
+                    .onChange(of: effect.smoothness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Threshold Smoothness")
                         canvas.setNeedsDisplay()
                     }
@@ -522,7 +522,7 @@ struct ChromaticAberrationControls: View {
                 }
                 Slider(value: $effect.redOffset, in: -10...10)
                     .accentColor(.blue)
-                    .onChange(of: effect.redOffset) {
+                    .onChange(of: effect.redOffset) { _ in
                         canvas.capturePropertyChange(actionName: "Change Red Offset")
                         canvas.setNeedsDisplay()
                     }
@@ -538,7 +538,7 @@ struct ChromaticAberrationControls: View {
                 }
                 Slider(value: $effect.blueOffset, in: -10...10)
                     .accentColor(.blue)
-                    .onChange(of: effect.blueOffset) {
+                    .onChange(of: effect.blueOffset) { _ in
                         canvas.capturePropertyChange(actionName: "Change Blue Offset")
                         canvas.setNeedsDisplay()
                     }
@@ -563,7 +563,7 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.lineIntensity, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.lineIntensity) {
+                    .onChange(of: effect.lineIntensity) { _ in
                         canvas.capturePropertyChange(actionName: "Change VHS Scanlines")
                         canvas.setNeedsDisplay()
                     }
@@ -579,7 +579,7 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.noiseIntensity, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.noiseIntensity) {
+                    .onChange(of: effect.noiseIntensity) { _ in
                         canvas.capturePropertyChange(actionName: "Change VHS Noise")
                         canvas.setNeedsDisplay()
                     }
@@ -595,7 +595,7 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.colorBleed, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.colorBleed) {
+                    .onChange(of: effect.colorBleed) { _ in
                         canvas.capturePropertyChange(actionName: "Change VHS Color Bleed")
                         canvas.setNeedsDisplay()
                     }
@@ -611,7 +611,7 @@ struct VHSControls: View {
                 }
                 Slider(value: $effect.distortion, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.distortion) {
+                    .onChange(of: effect.distortion) { _ in
                         canvas.capturePropertyChange(actionName: "Change VHS Distortion")
                         canvas.setNeedsDisplay()
                     }
@@ -636,7 +636,7 @@ struct PosterizeControls: View {
                 }
                 Slider(value: $effect.levels, in: 2...32)
                     .accentColor(.blue)
-                    .onChange(of: effect.levels) {
+                    .onChange(of: effect.levels) { _ in
                         canvas.capturePropertyChange(actionName: "Change Posterize Levels")
                         canvas.setNeedsDisplay()
                     }
@@ -661,7 +661,7 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.size, in: 0...2)
                     .accentColor(.blue)
-                    .onChange(of: effect.size) {
+                    .onChange(of: effect.size) { _ in
                         canvas.capturePropertyChange(actionName: "Change Vignette Size")
                         canvas.setNeedsDisplay()
                     }
@@ -677,7 +677,7 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.smoothness, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.smoothness) {
+                    .onChange(of: effect.smoothness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Vignette Smoothness")
                         canvas.setNeedsDisplay()
                     }
@@ -693,7 +693,7 @@ struct VignetteControls: View {
                 }
                 Slider(value: $effect.darkness, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.darkness) {
+                    .onChange(of: effect.darkness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Vignette Darkness")
                         canvas.setNeedsDisplay()
                     }
@@ -718,7 +718,7 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.dotSize, in: 2...32)
                     .accentColor(.blue)
-                    .onChange(of: effect.dotSize) {
+                    .onChange(of: effect.dotSize) { _ in
                         canvas.capturePropertyChange(actionName: "Change Halftone Size")
                         canvas.setNeedsDisplay()
                     }
@@ -734,7 +734,7 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.angle, in: 0...180)
                     .accentColor(.blue)
-                    .onChange(of: effect.angle) {
+                    .onChange(of: effect.angle) { _ in
                         canvas.capturePropertyChange(actionName: "Change Halftone Angle")
                         canvas.setNeedsDisplay()
                     }
@@ -750,7 +750,7 @@ struct HalftoneControls: View {
                 }
                 Slider(value: $effect.sharpness, in: 0...1)
                     .accentColor(.blue)
-                    .onChange(of: effect.sharpness) {
+                    .onChange(of: effect.sharpness) { _ in
                         canvas.capturePropertyChange(actionName: "Change Halftone Sharpness")
                         canvas.setNeedsDisplay()
                     }

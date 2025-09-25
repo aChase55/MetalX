@@ -26,7 +26,7 @@ struct CanvasEditorView: View {
             // Bounded canvas with pan/zoom support
             BoundedCanvasView(canvas: canvas)
                 .ignoresSafeArea()
-                .onChange(of: canvas.layers.count) {
+                .onChange(of: canvas.layers.count) { _ in
                     hasUnsavedChanges = true
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CanvasNeedsDisplay"))) { _ in
@@ -260,7 +260,7 @@ struct CanvasEditorView: View {
             BackgroundSettingsView(canvas: canvas, isPresented: $showingBackgroundSettings)
                 .asSelfSizingSheet()
         }
-        .onChange(of: selectedItem) { _, newImage in
+        .onChange(of: selectedItem) { newImage in
             Task {
                 if let data = try? await newImage?.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
@@ -475,7 +475,7 @@ struct AddContentMenu: View {
                     PhotosPicker(selection: $selectedItem, matching: .images) {
                         Label("Image", systemImage: "photo")
                     }
-                    .onChange(of: selectedItem) { _, _ in
+                    .onChange(of: selectedItem) { _ in
                         if selectedItem != nil {
                             onDismiss()
                         }

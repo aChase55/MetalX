@@ -285,7 +285,7 @@ struct TextPropertiesView: View {
                         }
                     ), in: 0.5...10)
                     .accentColor(.blue)
-                    .onChange(of: textLayer.outlineWidth) {
+                    .onChange(of: textLayer.outlineWidth) { _ in
                         canvas.capturePropertyChange(actionName: "Change Outline Width")
                     }
                 }

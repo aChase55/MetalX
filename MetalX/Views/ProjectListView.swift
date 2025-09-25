@@ -21,16 +21,20 @@ public struct ProjectListView: View {
                         GridItem(.adaptive(minimum: 300), spacing: 20)
                     ], spacing: 20) {
                         ForEach(projectList.projects, id: \.id) { project in
-                            ProjectCard(
-                                project: project,
-                                onTap: {
-                                    selectedProject = project
-                                },
-                                onDelete: {
-                                    projectToDelete = project
-                                    showingDeleteConfirmation = true
-                                }
-                            )
+                            NavigationLink {
+                                CanvasEditorView(project: project, projectList: projectList)
+                            } label: {
+                                ProjectCard(
+                                    project: project,
+                                    onTap: {
+                                        selectedProject = project
+                                    },
+                                    onDelete: {
+                                        projectToDelete = project
+                                        showingDeleteConfirmation = true
+                                    }
+                                )
+                            }
                         }
                     }
                     .padding()
@@ -68,9 +72,10 @@ public struct ProjectListView: View {
                     Text("Are you sure you want to delete \"\(project.name)\"? This cannot be undone.")
                 }
             }
-            .navigationDestination(item: $selectedProject) { project in
-                CanvasEditorView(project: project, projectList: projectList)
-            }
+            
+//            .navigationDestination(for: $selectedProject) { project in
+//                CanvasEditorView(project: project, projectList: projectList)
+//            }
             .onAppear {
                 projectList.loadProjects()
             }

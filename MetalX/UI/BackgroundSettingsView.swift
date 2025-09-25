@@ -51,7 +51,7 @@ struct BackgroundSettingsView: View {
                 case .solid:
                     Section("Color") {
                         ColorPicker("Background Color", selection: $selectedColor)
-                            .onChange(of: selectedColor) { _, newColor in
+                            .onChange(of: selectedColor) { _ in
                                 updateBackground()
                             }
                     }
@@ -64,7 +64,7 @@ struct BackgroundSettingsView: View {
                             Text("Angular").tag(Gradient.GradientType.angular)
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: gradientType) { _, _ in
+                        .onChange(of: gradientType) { _ in
                             updateBackground()
                         }
                         
@@ -72,12 +72,12 @@ struct BackgroundSettingsView: View {
                             HStack {
                                 ColorPicker("", selection: $gradientStops[index].color)
                                     .labelsHidden()
-                                    .onChange(of: gradientStops[index].color) { _, _ in
+                                    .onChange(of: gradientStops[index].color) { _ in
                                         updateBackground()
                                     }
                                 
                                 Slider(value: $gradientStops[index].location)
-                                    .onChange(of: gradientStops[index].location) { _, _ in
+                                    .onChange(of: gradientStops[index].location) { _ in
                                         updateBackground()
                                     }
                                 
@@ -108,7 +108,7 @@ struct BackgroundSettingsView: View {
                                    photoLibrary: .shared()) {
                             Label("Choose Image", systemImage: "photo")
                         }
-                        .onChange(of: selectedImage) { _, _ in
+                        .onChange(of: selectedImage) { _ in
                             loadSelectedImage()
                         }
                     }
