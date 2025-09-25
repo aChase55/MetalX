@@ -3,6 +3,9 @@ import SwiftUI
 struct AssetPickerView: View {
     let canvas: Canvas
     @Binding var isPresented: Bool
+    // Optional pre-supplied asset URLs (local or remote). When provided,
+    // these are shown instead of fetching from the remote endpoint.
+    let providedAssetURLs: [URL]?
     
     @State private var assets: [Asset] = []
     @State private var isLoading = true
@@ -27,6 +30,12 @@ struct AssetPickerView: View {
         let Count: Int?
     }
     
+    init(canvas: Canvas, isPresented: Binding<Bool>, providedAssetURLs: [URL]? = nil) {
+        self.canvas = canvas
+        self._isPresented = isPresented
+        self.providedAssetURLs = providedAssetURLs
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -86,18 +95,36 @@ struct AssetPickerView: View {
     func loadAssets() {
         isLoading = true
         errorMessage = nil
-        
+        // Use provided URLs if available
+        if let urls = providedAssetURLs, !urls.isEmpty {
+            self.assets = urls.map { url in
+                Asset(
+                    id: url.absoluteString,
+                    name: url.deletingPathExtension().lastPathComponent,
+                    image_url: url.absoluteString,
+                    preview_url: url.absoluteString,
+                    category: "Custom",
+                    tags: nil,
+                    collections: nil,
+                    is_featured: nil,
+                    premium: nil
+                )
+            }
+            self.isLoading = false
+            return
+        }
+
         guard let url = URL(string: "https://aojic0j0mk.execute-api.us-west-1.amazonaws.com/default/scrapbook_assets") else {
             errorMessage = "Invalid URL"
             isLoading = false
             return
         }
-        
+
         Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 let response = try JSONDecoder().decode(AssetsResponse.self, from: data)
-                
+
                 await MainActor.run {
                     self.assets = response.Items
                     self.isLoading = false
@@ -113,23 +140,45 @@ struct AssetPickerView: View {
     
     func downloadAsset(_ asset: Asset) {
         guard let url = URL(string: asset.image_url) else { return }
-        
+
         downloadingAssetId = asset.id
-        
-        Task {
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    await MainActor.run {
-                        addAssetToCanvas(image: image, name: asset.name)
-                        downloadingAssetId = nil
-                        isPresented = false
+
+        if url.isFileURL {
+            // Load local file synchronously on background thread
+            Task {
+                do {
+                    let data = try Data(contentsOf: url)
+                    if let image = UIImage(data: data) {
+                        await MainActor.run {
+                            addAssetToCanvas(image: image, name: asset.name)
+                            downloadingAssetId = nil
+                            isPresented = false
+                        }
+                    } else {
+                        await MainActor.run { downloadingAssetId = nil }
                     }
+                } catch {
+                    await MainActor.run { downloadingAssetId = nil }
                 }
-            } catch {
-                await MainActor.run {
-                    downloadingAssetId = nil
-                    // Could show an error alert here
+            }
+        } else {
+            Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let image = UIImage(data: data) {
+                        await MainActor.run {
+                            addAssetToCanvas(image: image, name: asset.name)
+                            downloadingAssetId = nil
+                            isPresented = false
+                        }
+                    } else {
+                        await MainActor.run { downloadingAssetId = nil }
+                    }
+                } catch {
+                    await MainActor.run {
+                        downloadingAssetId = nil
+                        // Could show an error alert here
+                    }
                 }
             }
         }
@@ -233,19 +282,39 @@ struct AssetItemView: View {
             isLoadingThumbnail = false
             return
         }
-        
-        Task {
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
+
+        if url.isFileURL {
+            Task {
+                do {
+                    let data = try Data(contentsOf: url)
+                    if let image = UIImage(data: data) {
+                        await MainActor.run {
+                            self.thumbnailImage = image
+                            self.isLoadingThumbnail = false
+                        }
+                    } else {
+                        await MainActor.run { self.isLoadingThumbnail = false }
+                    }
+                } catch {
+                    await MainActor.run { self.isLoadingThumbnail = false }
+                }
+            }
+        } else {
+            Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let image = UIImage(data: data) {
+                        await MainActor.run {
+                            self.thumbnailImage = image
+                            self.isLoadingThumbnail = false
+                        }
+                    } else {
+                        await MainActor.run { self.isLoadingThumbnail = false }
+                    }
+                } catch {
                     await MainActor.run {
-                        self.thumbnailImage = image
                         self.isLoadingThumbnail = false
                     }
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoadingThumbnail = false
                 }
             }
         }

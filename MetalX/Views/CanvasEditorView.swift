@@ -8,17 +8,20 @@ public struct CanvasEditorView: View {
     let projectList: ProjectListModel
     @Binding var exportTrigger: Bool
     let onExportImage: ((UIImage) -> Void)?
+    let assetURLs: [URL]?
     
     public init(
         project: MetalXProject,
         projectList: ProjectListModel,
         exportTrigger: Binding<Bool> = .constant(false),
-        onExportImage: ((UIImage) -> Void)? = nil
+        onExportImage: ((UIImage) -> Void)? = nil,
+        assetURLs: [URL]? = nil
     ) {
         self.project = project
         self.projectList = projectList
         self._exportTrigger = exportTrigger
         self.onExportImage = onExportImage
+        self.assetURLs = assetURLs
     }
     
     @StateObject private var canvas = Canvas()
@@ -248,7 +251,7 @@ public struct CanvasEditorView: View {
                 .asSelfSizingSheet()
         }
         .sheet(isPresented: $showingAssetPicker) {
-            AssetPickerView(canvas: canvas, isPresented: $showingAssetPicker)
+            AssetPickerView(canvas: canvas, isPresented: $showingAssetPicker, providedAssetURLs: assetURLs)
         }
         .sheet(isPresented: $showingBackgroundSettings) {
             BackgroundSettingsView(canvas: canvas, isPresented: $showingBackgroundSettings)
