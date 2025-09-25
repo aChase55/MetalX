@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
 
-struct CanvasEditorView: View {
+public struct CanvasEditorView: View {
     let project: MetalXProject
     let projectList: ProjectListModel
     
@@ -21,7 +21,7 @@ struct CanvasEditorView: View {
     // Auto-save timer
     let saveTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     
-    var body: some View {
+    public var body: some View {
         ZStack {
             // Bounded canvas with pan/zoom support
             BoundedCanvasView(canvas: canvas)
