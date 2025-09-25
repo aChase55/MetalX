@@ -5,6 +5,11 @@ public struct CanvasEditorView: View {
     let project: MetalXProject
     let projectList: ProjectListModel
     
+    public init(project: MetalXProject, projectList: ProjectListModel) {
+        self.project = project
+        self.projectList = projectList
+    }
+    
     @StateObject private var canvas = Canvas()
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var showingTextInput = false

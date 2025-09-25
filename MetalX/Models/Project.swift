@@ -4,7 +4,7 @@ import UIKit
 
 // MARK: - Project Model
 
-struct MetalXProject: Codable, Hashable, Equatable {
+public struct MetalXProject: Codable, Hashable, Equatable {
     var id: UUID
     var name: String
     var createdDate: Date
@@ -17,7 +17,7 @@ struct MetalXProject: Codable, Hashable, Equatable {
     // Version for future migration support
     let formatVersion: String = "1.0"
     
-    init(name: String, canvasSize: CGSize = CGSize(width: 1024, height: 1024)) {
+    public init(name: String, canvasSize: CGSize = CGSize(width: 1024, height: 1024)) {
         self.id = UUID()
         self.name = name
         self.createdDate = Date()
@@ -189,13 +189,13 @@ struct CodableColor: Codable, Hashable, Equatable {
 
 // MARK: - Project List Model
 
-class ProjectListModel: ObservableObject {
+public class ProjectListModel: ObservableObject {
     @Published var projects: [MetalXProject] = []
     
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     private let projectsDirectory: URL
     
-    init() {
+    public init() {
         projectsDirectory = documentsDirectory.appendingPathComponent("MetalXProjects")
         createProjectsDirectoryIfNeeded()
         loadProjects()
