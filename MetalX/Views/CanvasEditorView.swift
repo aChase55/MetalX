@@ -217,10 +217,6 @@ public struct CanvasEditorView: View {
                     showingAddMenu = false
                     addShapeLayer(shape)
                 },
-                onAddTestLayer: {
-                    showingAddMenu = false
-                    addTestLayer()
-                },
                 onAddAsset: {
                     showingAddMenu = false
                     showingAssetPicker = true
@@ -359,41 +355,7 @@ public struct CanvasEditorView: View {
         return CGPoint(x: canvas.size.width / 2, y: canvas.size.height / 2)
     }
     
-    private func addTestLayer() {
-        let colors: [UIColor] = [.systemRed, .systemBlue, .systemGreen, .systemOrange, .systemPurple]
-        let color = colors[canvas.layers.count % colors.count]
-        
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200))
-        let image = renderer.image { context in
-            color.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 200, height: 200))
-            
-            UIColor.white.setFill()
-            context.cgContext.fillEllipse(in: CGRect(x: 50, y: 50, width: 100, height: 100))
-            
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 48, weight: .bold),
-                .foregroundColor: UIColor.black
-            ]
-            let text = "\(canvas.layers.count + 1)"
-            let textSize = text.size(withAttributes: attributes)
-            let textRect = CGRect(
-                x: 100 - textSize.width/2,
-                y: 100 - textSize.height/2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect, withAttributes: attributes)
-        }
-        
-        let imageLayer = ImageLayer(image: image)
-        imageLayer.name = "Layer \(canvas.layers.count + 1)"
-        imageLayer.transform.position = visibleCenter
-        
-        canvas.addLayer(imageLayer)
-        canvas.selectLayer(imageLayer)
-        hasUnsavedChanges = true
-    }
+    // Removed test layer function
     
     private func addImageLayer(_ image: UIImage) {
         let imageLayer = ImageLayer(image: image)
@@ -475,17 +437,12 @@ struct AddContentMenu: View {
     let onDismiss: () -> Void
     let onAddText: () -> Void
     let onAddShape: (ShapeType) -> Void
-    let onAddTestLayer: () -> Void
     let onAddAsset: () -> Void
     
     var body: some View {
         NavigationStack {
             List {
                 Section("Basic") {
-                    Button(action: onAddTestLayer) {
-                        Label("Test Layer", systemImage: "square.fill")
-                    }
-                    
                     PhotosPicker(selection: $selectedItem, matching: .images) {
                         Label("Image", systemImage: "photo")
                     }
