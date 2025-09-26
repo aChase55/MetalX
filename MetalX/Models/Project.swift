@@ -6,10 +6,10 @@ import UIKit
 
 public struct MetalXProject: Codable, Hashable, Equatable {
     public var id: UUID
-    var name: String
-    var createdDate: Date
-    var modifiedDate: Date
-    var canvasSize: CGSize
+    public var name: String
+    public var createdDate: Date
+    public var modifiedDate: Date
+    public var canvasSize: CGSize
     var backgroundColor: CodableColor
     var layers: [LayerData]
     var canvasEffects: [EffectData]?
@@ -190,7 +190,7 @@ struct CodableColor: Codable, Hashable, Equatable {
 // MARK: - Project List Model
 
 public class ProjectListModel: ObservableObject {
-    @Published var projects: [MetalXProject] = []
+    @Published public var projects: [MetalXProject] = []
     
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     private let projectsDirectory: URL
@@ -205,7 +205,7 @@ public class ProjectListModel: ObservableObject {
         try? FileManager.default.createDirectory(at: projectsDirectory, withIntermediateDirectories: true)
     }
     
-    func loadProjects() {
+    public func loadProjects() {
         do {
             let projectURLs = try FileManager.default.contentsOfDirectory(
                 at: projectsDirectory,
