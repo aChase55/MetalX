@@ -21,35 +21,35 @@ public struct ProjectListView: View {
                         GridItem(.adaptive(minimum: 300), spacing: 20)
                     ], spacing: 20) {
                         ForEach(projectList.projects, id: \.id) { project in
-                            NavigationLink {
-                                CanvasEditorView(project: project, projectList: projectList)
-                            } label: {
+                            NavigationLink(value: project) {
                                 ProjectCard(
                                     project: project,
-                                    onTap: {
-                                        selectedProject = project
-                                    },
                                     onDelete: {
                                         projectToDelete = project
                                         showingDeleteConfirmation = true
                                     }
                                 )
+                                .contentShape(RoundedRectangle(cornerRadius: 12))
                             }
                         }
                     }
                     .padding()
                 }
             }
-            .navigationTitle("MetalX Projects")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        showingNewProjectSheet = true
-                    }) {
-                        Label("New Project", systemImage: "plus")
-                    }
-                }
+            .navigationTitle("Projects")
+            // Value-based navigation destination for projects
+            .navigationDestination(for: MetalXProject.self) { project in
+                CanvasEditorView(project: project, projectList: projectList)
             }
+//            .toolbar {
+//                ToolbarItem(placement: .primaryAction) {
+//                    Button(action: {
+//                        showingNewProjectSheet = true
+//                    }) {
+//                        Label("New Project", systemImage: "plus")
+//                    }
+//                }
+//            }
             .sheet(isPresented: $showingNewProjectSheet) {
                 NewProjectView(isPresented: $showingNewProjectSheet) { name, preset in
                     let project = projectList.createNewProject(name: name, preset: preset)
@@ -85,7 +85,6 @@ public struct ProjectListView: View {
 
 struct ProjectCard: View {
     let project: MetalXProject
-    let onTap: () -> Void
     let onDelete: () -> Void
     
     @State private var isHovering = false
@@ -162,7 +161,6 @@ struct ProjectCard: View {
         .background(Color(UIColor.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(radius: 2)
-        .onTapGesture(perform: onTap)
         .contextMenu {
             Button(role: .destructive) {
                 onDelete()
