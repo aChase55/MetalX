@@ -6,8 +6,12 @@ public struct ProjectListView: View {
     @State private var selectedProject: MetalXProject?
     @State private var showingDeleteConfirmation = false
     @State private var projectToDelete: MetalXProject?
+    let onSelectProject: ((MetalXProject) -> Void)?
+    @Environment(\.dismiss) private var dismiss
     
-    public init() {}
+    public init(onSelectProject: ((MetalXProject) -> Void)? = nil) {
+        self.onSelectProject = onSelectProject
+    }
 
     public var body: some View {
         NavigationStack {
@@ -21,15 +25,32 @@ public struct ProjectListView: View {
                         GridItem(.adaptive(minimum: 300), spacing: 20)
                     ], spacing: 20) {
                         ForEach(projectList.projects, id: \.id) { project in
-                            NavigationLink(value: project) {
-                                ProjectCard(
-                                    project: project,
-                                    onDelete: {
-                                        projectToDelete = project
-                                        showingDeleteConfirmation = true
-                                    }
-                                )
-                                .contentShape(RoundedRectangle(cornerRadius: 12))
+                            if let onSelect = onSelectProject {
+                                Button {
+                                    onSelect(project)
+                                    dismiss()
+                                } label: {
+                                    ProjectCard(
+                                        project: project,
+                                        onDelete: {
+                                            projectToDelete = project
+                                            showingDeleteConfirmation = true
+                                        }
+                                    )
+                                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                NavigationLink(value: project) {
+                                    ProjectCard(
+                                        project: project,
+                                        onDelete: {
+                                            projectToDelete = project
+                                            showingDeleteConfirmation = true
+                                        }
+                                    )
+                                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                                }
                             }
                         }
                     }
@@ -37,10 +58,8 @@ public struct ProjectListView: View {
                 }
             }
             .navigationTitle("Projects")
-            // Value-based navigation destination for projects
-            .navigationDestination(for: MetalXProject.self) { project in
-                CanvasEditorView(project: project, projectList: projectList)
-            }
+            // Value-based navigation destination for projects (only when not selecting)
+            .modifier(NavigationDestinationModifier(projectList: projectList, isActive: onSelectProject == nil))
 //            .toolbar {
 //                ToolbarItem(placement: .primaryAction) {
 //                    Button(action: {
@@ -206,6 +225,18 @@ struct EmptyStateView: View {
     }
 }
 
-#Preview {
-    ProjectListView()
+struct NavigationDestinationModifier: ViewModifier {
+    let projectList: ProjectListModel
+    let isActive: Bool
+    func body(content: Content) -> some View {
+        if isActive {
+            content.navigationDestination(for: MetalXProject.self) { project in
+                CanvasEditorView(project: project, projectList: projectList)
+            }
+        } else {
+            content
+        }
+    }
 }
+
+#Preview { ProjectListView() }
