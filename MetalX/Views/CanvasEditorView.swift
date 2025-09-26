@@ -415,6 +415,8 @@ public struct CanvasEditorView: View {
         updatedProject.createdDate = project.createdDate  // Preserve creation date
         
         projectList.saveProject(updatedProject)
+        // Also save/update a thumbnail alongside the project file
+        saveThumbnail(for: updatedProject)
         hasUnsavedChanges = false
         lastSaveDate = Date()
     }
@@ -423,6 +425,25 @@ public struct CanvasEditorView: View {
         // Only auto-save if enough time has passed
         if Date().timeIntervalSince(lastSaveDate) > 5 {
             saveProject()
+        }
+    }
+
+    private func saveThumbnail(for project: MetalXProject) {
+        guard let device = MTLCreateSystemDefaultDevice() else { return }
+        let renderer = MetalXRenderer(device: device)
+        // Compute a reasonable thumbnail size (max 512px on the longer edge)
+        let maxEdge: CGFloat = 512
+        let aspect = canvas.size.width / max(1, canvas.size.height)
+        let targetSize: CGSize
+        if aspect >= 1 { // landscape or square
+            targetSize = CGSize(width: maxEdge, height: maxEdge / max(aspect, 0.0001))
+        } else {
+            targetSize = CGSize(width: maxEdge * aspect, height: maxEdge)
+        }
+        if let image = renderer.renderToUIImage(canvas: canvas, size: targetSize),
+           let data = image.pngData() {
+            let url = projectList.projectThumbnailURL(for: project)
+            do { try data.write(to: url) } catch { print("Failed to write thumbnail: \(error)") }
         }
     }
     

@@ -90,18 +90,28 @@ struct ProjectCard: View {
     
     @State private var isHovering = false
     @State private var showingOptions = false
+    @State private var thumbnail: UIImage?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Thumbnail area
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 200)
-                .overlay(
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 200)
+                if let img = thumbnail {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 200)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.5))
-                )
+                }
+            }
                 .overlay(alignment: .topTrailing) {
                     // Show menu button on iOS, delete on hover for macOS
                     #if os(iOS)
@@ -163,6 +173,19 @@ struct ProjectCard: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering
+            }
+        }
+        .onAppear(perform: loadThumbnail)
+    }
+
+    private func loadThumbnail() {
+        let fm = FileManager.default
+        if let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let url = docs.appendingPathComponent("MetalXProjects").appendingPathComponent("\(project.id.uuidString).png")
+            if fm.fileExists(atPath: url.path),
+               let data = try? Data(contentsOf: url),
+               let img = UIImage(data: data) {
+                thumbnail = img
             }
         }
     }

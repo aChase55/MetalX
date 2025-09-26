@@ -273,4 +273,8 @@ public class ProjectListModel: ObservableObject {
     func projectURL(for project: MetalXProject) -> URL {
         return projectsDirectory.appendingPathComponent("\(project.id.uuidString).metalx")
     }
+    
+    func projectThumbnailURL(for project: MetalXProject) -> URL {
+        return projectsDirectory.appendingPathComponent("\(project.id.uuidString).png")
+    }
 }
