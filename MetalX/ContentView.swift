@@ -175,7 +175,7 @@ struct ContentView: View {
         
         let textLayer = TextLayer(text: text)
         textLayer.name = "Text: \(text)"
-        textLayer.textColor = .white
+        textLayer.textColor = .black
         textLayer.font = UIFont.systemFont(ofSize: 72, weight: .bold)
         textLayer.forceUpdateTexture() // Update texture after setting properties
         

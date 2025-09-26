@@ -36,6 +36,10 @@ public struct CanvasEditorView: View {
     @State private var showingCanvasEffects = false
     @State private var showingAssetPicker = false
     @State private var showingBackgroundSettings = false
+    @State private var aiPrompt: String = ""
+    @State private var aiError: String?
+    @State private var showingAIGenerateAlert = false
+    @State private var isGenerating = false
     
     // Auto-save timer
     let saveTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
@@ -110,6 +114,22 @@ public struct CanvasEditorView: View {
                 }
                 .transition(.move(edge: .leading))
                 .zIndex(1)
+            }
+            
+            // Lightweight generating overlay
+            if isGenerating {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                    Text("Generating…")
+                        .font(.callout)
+                        .foregroundColor(.primary)
+                }
+                .padding(20)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .navigationTitle("")
@@ -220,6 +240,10 @@ public struct CanvasEditorView: View {
                 onAddAsset: {
                     showingAddMenu = false
                     showingAssetPicker = true
+                },
+                onGenerate: {
+                    showingAddMenu = false
+                    showingAIGenerateAlert = true
                 }
             )
             .presentationDetents([.medium])
@@ -253,6 +277,40 @@ public struct CanvasEditorView: View {
             BackgroundSettingsView(canvas: canvas, isPresented: $showingBackgroundSettings)
                 .asSelfSizingSheet()
         }
+        .alert("Error", isPresented: Binding(get: { aiError != nil }, set: { _ in aiError = nil })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(aiError ?? "Unknown error")
+        }
+        .alert("Generate Image", isPresented: $showingAIGenerateAlert) {
+            TextField("Prompt", text: $aiPrompt)
+            Button("Generate") {
+                Task {
+                    do {
+                        guard !FreepikAIService.apiKey.isEmpty else {
+                            aiError = "Set API key before generating."
+                            return
+                        }
+                        showingAIGenerateAlert = false
+                        isGenerating = true
+                        let sizeHint = freepikSize(for: canvas.size)
+                        print("[AI] Generating image with prompt: \(aiPrompt) [size=\(sizeHint)]")
+                        let images = try await FreepikAIService.generate(prompt: aiPrompt, size: sizeHint)
+                        if let img = images.first {
+                            await MainActor.run { addImageLayer(img) }
+                        } else {
+                            aiError = "No images returned"
+                        }
+                    } catch {
+                        aiError = error.localizedDescription
+                    }
+                    isGenerating = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter a prompt to generate an image")
+        }
         .onChange(of: selectedItem) { newImage in
             Task {
                 if let data = try? await newImage?.loadTransferable(type: Data.self),
@@ -277,12 +335,25 @@ public struct CanvasEditorView: View {
                 saveProject()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HideSidebar"))) { _ in
+            withAnimation { showingSidebar = false }
+        }
         .onChange(of: exportTrigger) { _ in
             // Perform export when trigger flips
             if let image = exportCanvasImage(size: canvas.size) {
                 onExportImage?(image)
             }
         }
+    }
+
+    // Map canvas aspect ratio to Freepik size presets.
+    // Falls back to square for near-1:1 ratios.
+    private func freepikSize(for canvasSize: CGSize) -> String {
+        guard canvasSize.width > 0, canvasSize.height > 0 else { return "square" }
+        let ratio = canvasSize.width / canvasSize.height
+        if ratio > 1.1 { return "landscape" }
+        if ratio < 0.9 { return "portrait" }
+        return "square"
     }
 
     // MARK: - Export
@@ -381,7 +452,7 @@ public struct CanvasEditorView: View {
         
         let textLayer = TextLayer(text: text)
         textLayer.name = "Text: \(text)"
-        textLayer.textColor = .white
+        textLayer.textColor = .black
         textLayer.font = UIFont.systemFont(ofSize: 72, weight: .bold)
         textLayer.forceUpdateTexture()
         
@@ -438,6 +509,7 @@ struct AddContentMenu: View {
     let onAddText: () -> Void
     let onAddShape: (ShapeType) -> Void
     let onAddAsset: () -> Void
+    let onGenerate: () -> Void
     
     var body: some View {
         NavigationStack {
@@ -456,6 +528,10 @@ struct AddContentMenu: View {
                     
                     Button(action: onAddAsset) {
                         Label("Assets", systemImage: "sparkles")
+                    }
+                    
+                    Button(action: onGenerate) {
+                        Label("Generate Image", systemImage: "wand.and.stars")
                     }
                     
                     Button(action: onAddText) {

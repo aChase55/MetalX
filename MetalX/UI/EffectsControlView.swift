@@ -51,24 +51,38 @@ struct EffectsControlView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 if let brightnessContrast = effect as? BrightnessContrastEffect {
                                     BrightnessContrastControls(effect: brightnessContrast, canvas: canvas)
-                                } else if let hueSaturation = effect as? HueSaturationEffect {
+                                }
+                                if let hueSaturation = effect as? HueSaturationEffect {
                                     HueSaturationControls(effect: hueSaturation, canvas: canvas)
-                                } else if let pixellate = effect as? PixellateEffect {
+                                }
+#if canImport(MetalPerformanceShaders)
+                                if let blur = effect as? BlurEffect {
+                                    BlurControls(effect: blur, canvas: canvas)
+                                }
+#endif
+                                if let pixellate = effect as? PixellateEffect {
                                     PixellateControls(effect: pixellate, canvas: canvas)
-                                } else if let noise = effect as? NoiseEffect {
+                                }
+                                if let noise = effect as? NoiseEffect {
                                     NoiseControls(effect: noise, canvas: canvas)
-                                } else if let threshold = effect as? ThresholdEffect {
+                                }
+                                if let threshold = effect as? ThresholdEffect {
                                     ThresholdControls(effect: threshold, canvas: canvas)
-                                } else if let chromatic = effect as? ChromaticAberrationEffect {
+                                }
+                                if let chromatic = effect as? ChromaticAberrationEffect {
                                     ChromaticAberrationControls(effect: chromatic, canvas: canvas)
-                                } else if let vhs = effect as? VHSEffect {
+                                }
+                                if let vhs = effect as? VHSEffect {
                                     VHSControls(effect: vhs, canvas: canvas)
-                                } else if let posterize = effect as? PosterizeEffect {
+                                }
+                                if let posterize = effect as? PosterizeEffect {
                                     PosterizeControls(effect: posterize, canvas: canvas)
-                                } else if let vignette = effect as? VignetteEffect {
+                                }
+                                if let vignette = effect as? VignetteEffect {
                                     VignetteControls(effect: vignette, canvas: canvas)
-                                } else if let halftone = effect as? HalftoneEffect {
-                                    HalftoneControls(effect: halftone, canvas: canvas)
+                                }
+                                if let cmyk = effect as? CMYKHalftoneEffect {
+                                    CMYKHalftoneControls(effect: cmyk, canvas: canvas)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -133,20 +147,7 @@ struct EffectRow: View {
                 
                 Spacer()
                 
-                // Intensity slider
-                Slider(value: Binding(
-                    get: { CGFloat(effect.intensity) },
-                    set: { effect.intensity = Float($0) }
-                ), in: 0...1)
-                .frame(width: 80)
-                .disabled(!effect.isEnabled)
-                .onTapGesture {
-                    // Prevent button action when using slider
-                }
-                .onChange(of: effect.intensity) { _ in
-                    canvas.capturePropertyChange(actionName: "Change Effect Intensity")
-                    canvas.setNeedsDisplay()
-                }
+                // Removed global intensity slider for effect list
                 
                 // Remove button
                 Button(action: onRemove) {
@@ -197,6 +198,13 @@ struct EffectPickerView: View {
             }
             
             Section("Stylize") {
+#if canImport(MetalPerformanceShaders)
+                Button(action: {
+                    onSelect(BlurEffect())
+                }) {
+                    Label("Blur", systemImage: "drop")
+                }
+#endif
                 Button(action: {
                     onSelect(PixellateEffect())
                 }) {
@@ -204,9 +212,9 @@ struct EffectPickerView: View {
                 }
                 
                 Button(action: {
-                    onSelect(HalftoneEffect())
+                    onSelect(CMYKHalftoneEffect())
                 }) {
-                    Label("Halftone", systemImage: "circle.grid.3x3")
+                    Label("CMYK Halftone", systemImage: "circle.grid.2x2")
                 }
                 
                 Button(action: {
@@ -398,6 +406,33 @@ struct HueSaturationControls: View {
 }
 
 // MARK: - New Effect Controls
+
+#if canImport(MetalPerformanceShaders)
+struct BlurControls: View {
+    @ObservedObject var effect: BlurEffect
+    @ObservedObject var canvas: Canvas
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Radius")
+                    Spacer()
+                    Text(String(format: "%.1f", effect.radius))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.radius, in: 0...30)
+                    .accentColor(.blue)
+                    .onChange(of: effect.radius) { _ in
+                        canvas.capturePropertyChange(actionName: "Change Blur Radius")
+                        canvas.setNeedsDisplay()
+                    }
+            }
+        }
+    }
+}
+#endif
 
 struct PixellateControls: View {
     @ObservedObject var effect: PixellateEffect
@@ -702,8 +737,10 @@ struct VignetteControls: View {
     }
 }
 
-struct HalftoneControls: View {
-    @ObservedObject var effect: HalftoneEffect
+// Removed mono Halftone controls; use CMYKHalftoneControls instead
+
+struct CMYKHalftoneControls: View {
+    @ObservedObject var effect: CMYKHalftoneEffect
     @ObservedObject var canvas: Canvas
     
     var body: some View {
@@ -716,10 +753,10 @@ struct HalftoneControls: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Slider(value: $effect.dotSize, in: 2...32)
+                Slider(value: $effect.dotSize, in: 2...50)
                     .accentColor(.blue)
                     .onChange(of: effect.dotSize) { _ in
-                        canvas.capturePropertyChange(actionName: "Change Halftone Size")
+                        canvas.capturePropertyChange(actionName: "Change CMYK Halftone Size")
                         canvas.setNeedsDisplay()
                     }
             }
@@ -732,10 +769,10 @@ struct HalftoneControls: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Slider(value: $effect.angle, in: 0...180)
+                Slider(value: $effect.angle, in: -180...180)
                     .accentColor(.blue)
                     .onChange(of: effect.angle) { _ in
-                        canvas.capturePropertyChange(actionName: "Change Halftone Angle")
+                        canvas.capturePropertyChange(actionName: "Change CMYK Halftone Angle")
                         canvas.setNeedsDisplay()
                     }
             }
@@ -751,7 +788,39 @@ struct HalftoneControls: View {
                 Slider(value: $effect.sharpness, in: 0...1)
                     .accentColor(.blue)
                     .onChange(of: effect.sharpness) { _ in
-                        canvas.capturePropertyChange(actionName: "Change Halftone Sharpness")
+                        canvas.capturePropertyChange(actionName: "Change CMYK Halftone Sharpness")
+                        canvas.setNeedsDisplay()
+                    }
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("GCR")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.grayComponentReplacement * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.grayComponentReplacement, in: 0...1)
+                    .accentColor(.blue)
+                    .onChange(of: effect.grayComponentReplacement) { _ in
+                        canvas.capturePropertyChange(actionName: "Change CMYK GCR")
+                        canvas.setNeedsDisplay()
+                    }
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("UCR")
+                    Spacer()
+                    Text(String(format: "%.0f%%", effect.underColorRemoval * 100))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $effect.underColorRemoval, in: 0...1)
+                    .accentColor(.blue)
+                    .onChange(of: effect.underColorRemoval) { _ in
+                        canvas.capturePropertyChange(actionName: "Change CMYK UCR")
                         canvas.setNeedsDisplay()
                     }
             }

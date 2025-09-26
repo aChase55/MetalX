@@ -3,6 +3,7 @@ import SwiftUI
 struct SelectedLayerPill: View {
     @ObservedObject var canvas: Canvas
     @State private var selectedTab: LayerPropertyTab?
+    @State private var sheetHeight: CGFloat = 300
     
     enum LayerPropertyTab: String, CaseIterable, Identifiable {
         var id: String { rawValue }
@@ -78,6 +79,7 @@ struct SelectedLayerPill: View {
                     ForEach(availableTabs, id: \.self) { tab in
                         Button(action: {
                             selectedTab = tab
+                            NotificationCenter.default.post(name: NSNotification.Name("HideSidebar"), object: nil)
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: tab.systemImage)
@@ -108,9 +110,18 @@ struct SelectedLayerPill: View {
             .sheet(item: $selectedTab, content: { tab in
                 LayerPropertySheet(
                     canvas: canvas,
-                    selectedTab: tab
+                    selectedTab: tab,
+                    onHeightChange: { h in
+                        // Bound the measured content height (max 300)
+                        let minH: CGFloat = 180
+                        let maxH: CGFloat = 300
+                        let padded = h + 40 // small padding for comfort
+                        sheetHeight = min(max(padded, minH), maxH)
+                    }
                 )
-                .asSelfSizingSheet()
+                .presentationDetents([
+                    .height(sheetHeight)
+                ])
                 .presentationDragIndicator(.visible)
                 .modifier(BackgroundInteractionCompat())
                 .interactiveDismissDisabled(false)
@@ -154,6 +165,7 @@ struct LayerPropertySheet: View {
     @ObservedObject var canvas: Canvas
     let selectedTab: SelectedLayerPill.LayerPropertyTab
     @Environment(\.dismiss) private var dismiss
+    var onHeightChange: ((CGFloat) -> Void)? = nil
     
     var selectedLayer: (any Layer)? {
         canvas.selectedLayer
@@ -180,6 +192,18 @@ struct LayerPropertySheet: View {
                 }
             }
             .padding()
+            // Measure intrinsic content height to drive sheet detent
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            onHeightChange?(proxy.size.height)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                onHeightChange?(proxy.size.height)
+                            }
+                        }
+                }
+            )
         }
     }
     
@@ -652,7 +676,32 @@ struct LayerPropertySheet: View {
     
     @ViewBuilder
     private func effectsControls(for layer: any Layer) -> some View {
-        EffectsControlView(effectStack: layer.effectStack, canvas: canvas)
+        VStack(alignment: .leading, spacing: 12) {
+            if let imageLayer = layer as? ImageLayer {
+                if #available(iOS 17.0, *) {
+                    Button {
+                        if let img = imageLayer.image {
+                            print("[ImageProcessing] Remove Background tapped for layer: \(imageLayer.name)")
+                            let processed = ImageProcessing.removeBackground(from: img)
+                            imageLayer.image = processed
+                            canvas.setNeedsDisplay()
+                        } else {
+                            print("[ImageProcessing] Remove Background tapped but imageLayer.image is nil")
+                        }
+                    } label: {
+                        Label("Remove Background", systemImage: "wand.and.stars")
+                    }
+                } else {
+                    // Show disabled state on iOS 16
+                    HStack {
+                        Label("Remove Background (iOS 17+)", systemImage: "wand.and.stars")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+            }
+            EffectsControlView(effectStack: layer.effectStack, canvas: canvas)
+        }
     }
     
     @ViewBuilder

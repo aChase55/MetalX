@@ -67,6 +67,30 @@ struct BackgroundSettingsView: View {
                         .onChange(of: gradientType) { _ in
                             updateBackground()
                         }
+
+                        // Presets row
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(GradientPresets.all) { preset in
+                                    Button {
+                                        applyPreset(preset)
+                                    } label: {
+                                        VStack(spacing: 6) {
+                                            GradientPreview(gradientData: preset.data)
+                                                .frame(width: 100, height: 60)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            Text(preset.name)
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                                .frame(width: 100)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
                         
                         ForEach(gradientStops.indices, id: \.self) { index in
                             HStack {
@@ -184,6 +208,14 @@ struct BackgroundSettingsView: View {
         case .image:
             break // Handled in loadSelectedImage
         }
+    }
+    
+    private func applyPreset(_ preset: GradientPreset) {
+        // Map preset GradientData to local editing state
+        gradientType = preset.data.type
+        let zipped = zip(preset.data.colors, preset.data.locations)
+        gradientStops = zipped.map { GradientStop(color: $0.0, location: CGFloat($0.1)) }
+        updateBackground()
     }
     
     private func loadSelectedImage() {

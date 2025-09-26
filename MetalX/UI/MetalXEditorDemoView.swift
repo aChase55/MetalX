@@ -154,7 +154,7 @@ public struct MetalXEditorDemoView: View {
 
         let textLayer = TextLayer(text: text)
         textLayer.name = "Text: \(text)"
-        textLayer.textColor = .white
+        textLayer.textColor = .black
         textLayer.font = UIFont.systemFont(ofSize: 72, weight: .bold)
         textLayer.forceUpdateTexture()
 
@@ -203,4 +203,3 @@ public struct MetalXEditorDemoView: View {
 #Preview {
     MetalXEditorDemoView()
 }
-

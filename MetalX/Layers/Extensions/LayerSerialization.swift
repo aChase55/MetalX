@@ -78,10 +78,12 @@ extension Layer {
                 parameters["size"] = vignetteEffect.size
                 parameters["smoothness"] = vignetteEffect.smoothness
                 parameters["darkness"] = vignetteEffect.darkness
-            } else if let halftoneEffect = effect as? HalftoneEffect {
-                parameters["dotSize"] = halftoneEffect.dotSize
-                parameters["angle"] = halftoneEffect.angle
-                parameters["sharpness"] = halftoneEffect.sharpness
+            } else if let cmyk = effect as? CMYKHalftoneEffect {
+                parameters["dotSize"] = cmyk.dotSize
+                parameters["angle"] = cmyk.angle
+                parameters["sharpness"] = cmyk.sharpness
+                parameters["grayComponentReplacement"] = cmyk.grayComponentReplacement
+                parameters["underColorRemoval"] = cmyk.underColorRemoval
             }
             
             return EffectData(
@@ -541,12 +543,21 @@ class LayerFactory {
             vignetteEffect.smoothness = data.parameters["smoothness"] ?? 0.3
             vignetteEffect.darkness = data.parameters["darkness"] ?? 0.8
             effect = vignetteEffect
+        } else if data.type.contains("CMYKHalftoneEffect") {
+            let cmyk = CMYKHalftoneEffect()
+            cmyk.dotSize = data.parameters["dotSize"] ?? 6.0
+            cmyk.angle = data.parameters["angle"] ?? 0.0
+            cmyk.sharpness = data.parameters["sharpness"] ?? 0.7
+            cmyk.grayComponentReplacement = data.parameters["grayComponentReplacement"] ?? 1.0
+            cmyk.underColorRemoval = data.parameters["underColorRemoval"] ?? 0.5
+            effect = cmyk
         } else if data.type.contains("HalftoneEffect") {
-            let halftoneEffect = HalftoneEffect()
-            halftoneEffect.dotSize = data.parameters["dotSize"] ?? 8.0
-            halftoneEffect.angle = data.parameters["angle"] ?? 45.0
-            halftoneEffect.sharpness = data.parameters["sharpness"] ?? 0.8
-            effect = halftoneEffect
+            // Legacy: map mono Halftone to CMYKHalftone with similar parameters
+            let cmyk = CMYKHalftoneEffect()
+            cmyk.dotSize = data.parameters["dotSize"] ?? 8.0
+            cmyk.angle = data.parameters["angle"] ?? 45.0
+            cmyk.sharpness = data.parameters["sharpness"] ?? 0.8
+            effect = cmyk
         } else {
             return nil
         }
@@ -622,10 +633,12 @@ extension Canvas {
                 parameters["size"] = vignetteEffect.size
                 parameters["smoothness"] = vignetteEffect.smoothness
                 parameters["darkness"] = vignetteEffect.darkness
-            } else if let halftoneEffect = effect as? HalftoneEffect {
-                parameters["dotSize"] = halftoneEffect.dotSize
-                parameters["angle"] = halftoneEffect.angle
-                parameters["sharpness"] = halftoneEffect.sharpness
+            } else if let cmyk = effect as? CMYKHalftoneEffect {
+                parameters["dotSize"] = cmyk.dotSize
+                parameters["angle"] = cmyk.angle
+                parameters["sharpness"] = cmyk.sharpness
+                parameters["grayComponentReplacement"] = cmyk.grayComponentReplacement
+                parameters["underColorRemoval"] = cmyk.underColorRemoval
             }
             
             return EffectData(

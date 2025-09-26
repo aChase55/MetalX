@@ -51,6 +51,8 @@ let package = Package(
                 "Models",
                 "Typography",
                 "UI",
+                "System",
+                "Util",
                 "Views"
             ],
             // Let SwiftPM process shaders as resources so the compiled

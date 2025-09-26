@@ -505,6 +505,24 @@ struct GradientData {
     
     init() {}
     
+    init(
+        colors: [Color],
+        locations: [Float],
+        type: Gradient.GradientType,
+        linearStartPoint: UnitPoint,
+        linearEndPoint: UnitPoint,
+        radialCenter: UnitPoint,
+        radialRadius: Float
+    ) {
+        self.colors = colors
+        self.locations = locations
+        self.type = type
+        self.linearStartPoint = linearStartPoint
+        self.linearEndPoint = linearEndPoint
+        self.radialCenter = radialCenter
+        self.radialRadius = radialRadius
+    }
+    
     init(from gradient: Gradient) {
         self.type = gradient.type
         self.colors = gradient.colorStops.map { Color(UIColor(cgColor: $0.color)) }
