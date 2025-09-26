@@ -28,13 +28,8 @@ struct GradientEditorView: View {
                     onApply()
                 }
                 
-                // Presets
+                // Presets (no section title)
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Presets")
-                            .font(.headline)
-                        Spacer()
-                    }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(GradientPresets.all) { preset in
@@ -45,11 +40,6 @@ struct GradientEditorView: View {
                                         GradientPreview(gradientData: preset.data)
                                             .frame(width: 100, height: 60)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        Text(preset.name)
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                            .frame(width: 100)
                                     }
                                 }
                                 .buttonStyle(.plain)

@@ -79,11 +79,6 @@ struct BackgroundSettingsView: View {
                                             GradientPreview(gradientData: preset.data)
                                                 .frame(width: 100, height: 60)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                                            Text(preset.name)
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                                .frame(width: 100)
                                         }
                                     }
                                     .buttonStyle(.plain)
@@ -195,12 +190,28 @@ struct BackgroundSettingsView: View {
             let colorStops = gradientStops.sorted(by: { $0.location < $1.location }).map { stop in
                 Gradient.ColorStop(color: UIColor(stop.color).cgColor, location: Float(stop.location))
             }
+            // Map start/end points by gradient type (normalized 0..1 space)
+            let startPoint: CGPoint
+            let endPoint: CGPoint
+            switch gradientType {
+            case .linear:
+                startPoint = CGPoint(x: 0, y: 0)
+                endPoint = CGPoint(x: 1, y: 1)
+            case .radial:
+                // Center at 0.5, radius ~0.5 (relative to min dimension)
+                startPoint = CGPoint(x: 0.5, y: 0.5)
+                endPoint = CGPoint(x: 1.0, y: 0.5)
+            case .angular:
+                // Centered angular gradient
+                startPoint = CGPoint(x: 0.5, y: 0.5)
+                endPoint = startPoint
+            }
             
             let gradient = Gradient(
                 type: gradientType,
                 colorStops: colorStops,
-                startPoint: CGPoint(x: 0, y: 0),
-                endPoint: CGPoint(x: 1, y: 1)
+                startPoint: startPoint,
+                endPoint: endPoint
             )
             
             canvas.setBackgroundFill(.gradient(gradient))
