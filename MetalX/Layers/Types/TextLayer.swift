@@ -67,6 +67,10 @@ class TextLayer: BaseLayer, ObservableObject {
         }
     }
     
+    @Published var alignment: NSTextAlignment = .center {
+        didSet { updateTexture() }
+    }
+    
     private(set) var texture: MTLTexture?
     private var textRenderer: SimpleTextRenderer?
     private var device: MTLDevice?
@@ -94,6 +98,7 @@ class TextLayer: BaseLayer, ObservableObject {
             font: font,
             fillType: fillType,
             maxWidth: 800, // Max width for text wrapping
+            alignment: alignment,
             hasOutline: hasOutline,
             outlineColor: outlineColor,
             outlineWidth: outlineWidth

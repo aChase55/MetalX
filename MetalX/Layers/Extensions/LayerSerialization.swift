@@ -160,7 +160,7 @@ extension TextLayer {
             fontSize: font.pointSize,
             fontName: font.fontName,
             textColor: CodableColor(cgColor: textColor.cgColor),
-            alignment: "center", // TODO: Add alignment property to TextLayer
+            alignment: alignmentString(self.alignment),
             fillType: fillTypeString,
             gradientData: gradientData,
             imageData: imageData,
@@ -175,6 +175,15 @@ extension TextLayer {
         case .linear: return "linear"
         case .radial: return "radial"
         case .angular: return "angular"
+        }
+    }
+    
+    private func alignmentString(_ alignment: NSTextAlignment) -> String {
+        switch alignment {
+        case .left: return "left"
+        case .right: return "right"
+        case .center: return "center"
+        default: return "left"
         }
     }
 }
@@ -321,6 +330,14 @@ class LayerFactory {
         
         let layer = TextLayer(text: textData.text)
         layer.font = UIFont(name: textData.fontName, size: textData.fontSize) ?? UIFont.systemFont(ofSize: textData.fontSize)
+        // Alignment
+        let align = textData.alignment.lowercased()
+        switch align {
+        case "left": layer.alignment = .left
+        case "right": layer.alignment = .right
+        case "center": layer.alignment = .center
+        default: break
+        }
         
         // Load fill type
         if let fillTypeString = textData.fillType {

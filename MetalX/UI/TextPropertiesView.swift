@@ -15,6 +15,44 @@ struct TextPropertiesView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Alignment controls
+            HStack(spacing: 12) {
+                Text("Alignment")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button {
+                    canvas.capturePropertyChange(actionName: "Align Left")
+                    textLayer.alignment = .left
+                    canvas.setNeedsDisplay()
+                } label: {
+                    Image(systemName: "text.alignleft")
+                        .foregroundColor(textLayer.alignment == .left ? .white : .primary)
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(textLayer.alignment == .left ? Color.blue : Color.gray.opacity(0.2)))
+                }
+                Button {
+                    canvas.capturePropertyChange(actionName: "Align Center")
+                    textLayer.alignment = .center
+                    canvas.setNeedsDisplay()
+                } label: {
+                    Image(systemName: "text.aligncenter")
+                        .foregroundColor(textLayer.alignment == .center ? .white : .primary)
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(textLayer.alignment == .center ? Color.blue : Color.gray.opacity(0.2)))
+                }
+                Button {
+                    canvas.capturePropertyChange(actionName: "Align Right")
+                    textLayer.alignment = .right
+                    canvas.setNeedsDisplay()
+                } label: {
+                    Image(systemName: "text.alignright")
+                        .foregroundColor(textLayer.alignment == .right ? .white : .primary)
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(textLayer.alignment == .right ? Color.blue : Color.gray.opacity(0.2)))
+                }
+            }
+            
             // Text content editing
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text Content")

@@ -6,6 +6,9 @@ struct AssetPickerView: View {
     // Optional pre-supplied asset URLs (local or remote). When provided,
     // these are shown instead of fetching from the remote endpoint.
     let providedAssetURLs: [URL]?
+    // Optional pre-supplied assets with display names.
+    struct InputAsset { let url: URL; let name: String }
+    let providedAssets: [InputAsset]?
     
     @State private var assets: [Asset] = []
     @State private var isLoading = true
@@ -30,10 +33,11 @@ struct AssetPickerView: View {
         let Count: Int?
     }
     
-    init(canvas: Canvas, isPresented: Binding<Bool>, providedAssetURLs: [URL]? = nil) {
+    init(canvas: Canvas, isPresented: Binding<Bool>, providedAssetURLs: [URL]? = nil, providedAssets: [InputAsset]? = nil) {
         self.canvas = canvas
         self._isPresented = isPresented
         self.providedAssetURLs = providedAssetURLs
+        self.providedAssets = providedAssets
     }
 
     var body: some View {
@@ -95,12 +99,30 @@ struct AssetPickerView: View {
     func loadAssets() {
         isLoading = true
         errorMessage = nil
-        // Use provided URLs if available
+        // Use provided named assets if available
+        if let inputs = providedAssets, !inputs.isEmpty {
+            self.assets = inputs.map { input in
+                Asset(
+                    id: input.url.absoluteString,
+                    name: input.name,
+                    image_url: input.url.absoluteString,
+                    preview_url: input.url.absoluteString,
+                    category: "Custom",
+                    tags: nil,
+                    collections: nil,
+                    is_featured: nil,
+                    premium: nil
+                )
+            }
+            self.isLoading = false
+            return
+        }
+        // Otherwise, use provided URLs if available
         if let urls = providedAssetURLs, !urls.isEmpty {
             self.assets = urls.map { url in
                 Asset(
                     id: url.absoluteString,
-                    name: url.deletingPathExtension().lastPathComponent,
+                    name: displayName(for: url),
                     image_url: url.absoluteString,
                     preview_url: url.absoluteString,
                     category: "Custom",
@@ -136,6 +158,18 @@ struct AssetPickerView: View {
                 }
             }
         }
+    }
+    
+    private func displayName(for url: URL) -> String {
+        // Prefer last path component, trimmed
+        var name = url.deletingPathExtension().lastPathComponent
+        if name.count > 24 {
+            // Middle truncate
+            let prefix = name.prefix(12)
+            let suffix = name.suffix(8)
+            name = String(prefix) + "…" + String(suffix)
+        }
+        return name
     }
     
     func downloadAsset(_ asset: Asset) {
