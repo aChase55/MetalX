@@ -249,62 +249,62 @@ struct AssetItemView: View {
     @State private var isLoadingThumbnail = true
     
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.secondarySystemFill))
-                        .aspectRatio(1, contentMode: .fit)
-                    
-                    if isLoadingThumbnail {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if let image = thumbnailImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        Image(systemName: "photo")
-                            .font(.largeTitle)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if isDownloading {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.5))
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    }
+        VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(UIColor.secondarySystemFill))
+                    .aspectRatio(1, contentMode: .fit)
+                
+                if isLoadingThumbnail {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if let image = thumbnailImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
                 }
                 
-                Text(asset.name)
-                    .font(.caption)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.primary)
-                
-                if let tags = asset.tags, !tags.isEmpty {
-                    Text(tags)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color(UIColor.tertiarySystemFill))
-                        .clipShape(Capsule())
-                } else if !asset.category.isEmpty {
-                    Text(asset.category)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color(UIColor.tertiarySystemFill))
-                        .clipShape(Capsule())
+                if isDownloading {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.5))
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 }
             }
+            
+            Text(asset.name)
+                .font(.caption)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.primary)
+            
+            if let tags = asset.tags, !tags.isEmpty {
+                Text(tags)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .clipShape(Capsule())
+            } else if !asset.category.isEmpty {
+                Text(asset.category)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .clipShape(Capsule())
+            }
         }
-        .buttonStyle(.plain)
+        .onTapGesture {
+            onTap()
+        }
         .disabled(isDownloading)
         .onAppear {
             loadThumbnail()

@@ -157,22 +157,21 @@ public struct CanvasEditorView: View {
                 }
                 .disabled(!canvas.undoManager.canRedo)
             }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(action: saveProject) {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                    }
-                    .disabled(!hasUnsavedChanges)
-                    
-                    Button(action: { showingExportView = true }) {
-                        Label("Export", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(canvas.layers.isEmpty)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
+//            ToolbarItem(placement: .navigationBarTrailing) {
+//                Menu {
+//                    Button(action: saveProject) {
+//                        Label("Save", systemImage: "square.and.arrow.down")
+//                    }
+//                    .disabled(!hasUnsavedChanges)
+//                    
+//                    Button(action: { showingExportView = true }) {
+//                        Label("Export", systemImage: "square.and.arrow.up")
+//                    }
+//                    .disabled(canvas.layers.isEmpty)
+//                } label: {
+//                    Image(systemName: "ellipsis.circle")
+//                }
+//            }
         }
         // Bottom Tab Bar for primary actions when no layer is selected
         .safeAreaInset(edge: .bottom) {
