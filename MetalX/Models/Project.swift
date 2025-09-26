@@ -5,7 +5,7 @@ import UIKit
 // MARK: - Project Model
 
 public struct MetalXProject: Codable, Hashable, Equatable {
-    var id: UUID
+    public var id: UUID
     var name: String
     var createdDate: Date
     var modifiedDate: Date
